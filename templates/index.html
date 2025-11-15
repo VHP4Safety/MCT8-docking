@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCT8 Docking - VHP4Safety</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.7.0/css/buttons.dataTables.min.css">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.7.0/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.print.min.js"></script>
+</head>
+<body>
+    <!-- Logo -->
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="VHP4Safety Logo" class="center">
+
+    <!-- Header -->
+    <header>
+        <h1>MCT8 Docking Simulation</h1>
+        <p>Predict inhibitor binding to Monocarboxylate Transporter 8</p>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <h2>Input Ligands</h2>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Error Display -->
+        {% if error %}
+            <div class="error-message">
+                <strong>Error:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        <!-- Docking Form -->
+        <form method="post" action="/dock" enctype="multipart/form-data" id="dockingForm">
+            <!-- SMILES Input -->
+            <div class="form-group">
+                <label for="smiles">SMILES Strings (comma-separated):</label>
+                <input type="text"
+                       id="smiles"
+                       name="smiles"
+                       placeholder="COC1=C(C=CC(=C1)[C@H]2[C@@H]..., c1ccccc1, ..."
+                       class="form-control">
+                <small>Default: Silychristin (MCT8 inhibitor)</small>
+            </div>
+
+            <!-- File Upload -->
+            <div class="form-group">
+                <label for="file">Or upload file:</label>
+                <input type="file"
+                       id="file"
+                       name="file"
+                       accept=".sdf,.smi,.csv,.txt"
+                       class="form-control-file">
+                <small>Accepted formats: SDF, SMI, CSV (with 'SMILES' column), TXT</small>
+            </div>
+
+            <!-- Ligand Processing Options -->
+            <div class="options-section">
+                <h3>Ligand Preparation</h3>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="add_h" checked>
+                        <span>Add Hydrogens</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="gen_3d" checked>
+                        <span>Generate 3D Structure</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="optimize" checked>
+                        <span>Optimize Geometry</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Docking Parameters -->
+            <div class="params-section">
+                <h3>Docking Parameters</h3>
+                <div class="params-grid">
+                    <div class="param-item">
+                        <label for="num_modes">Number of Poses: <span id="num_modes_value">3</span></label>
+                        <input type="range"
+                               id="num_modes"
+                               name="num_modes"
+                               min="1"
+                               max="50"
+                               value="3"
+                               oninput="document.getElementById('num_modes_value').textContent=this.value">
+                    </div>
+
+                    <div class="param-item">
+                        <label for="exhaustiveness">Exhaustiveness: <span id="exhaustiveness_value">8</span></label>
+                        <input type="range"
+                               id="exhaustiveness"
+                               name="exhaustiveness"
+                               min="2"
+                               max="128"
+                               step="2"
+                               value="8"
+                               oninput="document.getElementById('exhaustiveness_value').textContent=this.value">
+                    </div>
+
+                    <div class="param-item">
+                        <label for="autobox_add">Search Box (Å): <span id="autobox_add_value">6.0</span></label>
+                        <input type="range"
+                               id="autobox_add"
+                               name="autobox_add"
+                               min="0"
+                               max="10"
+                               step="0.2"
+                               value="6.0"
+                               oninput="document.getElementById('autobox_add_value').textContent=this.value">
+                    </div>
+
+                    <div class="param-item">
+                        <label for="cnn">CNN Scoring:</label>
+                        <select id="cnn" name="cnn" class="form-select">
+                            <option value="fast" selected>Fast</option>
+                            <option value="default">Default</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="button-group">
+                <button type="submit" name="action" value="dock" class="btn btn-primary">
+                    Run Docking
+                </button>
+                <button type="submit" name="action" value="report" class="btn btn-secondary">
+                    Generate PDF Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    {% if results %}
+    <div class="container">
+        <h2>Docking Results</h2>
+
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <h4>Interpretation Guide</h4>
+            <ul>
+                <li><strong style="color: #E6007E;">Strong Inhibitor:</strong> Affinity &lt; -9.0 kcal/mol</li>
+                <li><strong style="color: #FF9500;">Moderate Inhibitor:</strong> Affinity -8.0 to -9.0 kcal/mol</li>
+                <li><strong style="color: #4CAF50;">Weak/Non-Inhibitor:</strong> Affinity &gt; -8.0 kcal/mol</li>
+            </ul>
+            <p><strong>Total Poses:</strong> {{ num_poses }}</p>
+        </div>
+
+        <!-- Results Table -->
+        <div class="table-responsive">
+            <table id="resultsTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Structure</th>
+                        <th>SMILES</th>
+                        <th>InChIKey</th>
+                        <th>Affinity (kcal/mol)</th>
+                        <th>CNN Score</th>
+                        <th>Boltzmann Weight</th>
+                        <th>Assessment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                    <tr>
+                        <td>
+                            {% if row.structure_img %}
+                                <img src="{{ row.structure_img }}"
+                                     alt="Structure"
+                                     style="max-width: 150px; max-height: 150px;">
+                            {% else %}
+                                <span>N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.smiles }}</td>
+                        <td>{{ row.inchikey }}</td>
+                        <td>{{ "%.2f"|format(row.affinity) if row.affinity else 'N/A' }}</td>
+                        <td>{{ "%.3f"|format(row.cnn_score) if row.cnn_score else 'N/A' }}</td>
+                        <td>{{ "%.3f"|format(row.boltzmann_weight) if row.boltzmann_weight else 'N/A' }}</td>
+                        <td>
+                            {% if row.assessment %}
+                                <span class="badge" style="background-color: {{ row.assessment.color }}; color: white;">
+                                    {{ row.assessment.category }}
+                                </span>
+                            {% else %}
+                                <span>Unknown</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <footer>
+        <p>VHP4Safety - Thyroid Case Study | MCT8 Docking Service</p>
+        <a href="https://github.com/VHP4Safety" target="_blank">
+            <img src="{{ url_for('static', filename='img/github.svg') }}" alt="GitHub" style="width: 20px; vertical-align: middle;">
+            View on GitHub
+        </a>
+    </footer>
+
+    <!-- JavaScript for DataTables -->
+    <script>
+        $(document).ready(function() {
+            {% if results %}
+            $('#resultsTable').DataTable({
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'csvHtml5',
+                        text: 'Export CSV',
+                        title: 'MCT8_Docking_Results'
+                    },
+                    {
+                        extend: 'excelHtml5',
+                        text: 'Export Excel',
+                        title: 'MCT8_Docking_Results'
+                    },
+                    {
+                        extend: 'print',
+                        text: 'Print'
+                    }
+                ],
+                scrollX: true,
+                order: [[3, 'asc']],  // Sort by affinity (ascending, most negative first)
+                columnDefs: [
+                    { targets: [1], visible: false },  // Hide SMILES column
+                    { targets: [2], visible: true }    // Show InChIKey
+                ],
+                pageLength: 25
+            });
+            {% endif %}
+        });
+    </script>
+</body>
+</html>
