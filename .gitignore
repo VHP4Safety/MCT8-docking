@@ -52,7 +52,7 @@ Desktop.ini
 results/
 temp/
 *.log
-binaries/gnina
+binaries/
 *.pdb
 *.sdf
 MCT8_docking_results.csv
