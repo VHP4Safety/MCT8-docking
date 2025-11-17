@@ -21,15 +21,37 @@ MCT8 (Monocarboxylate Transporter 8) is critical for thyroid hormone transport d
 
 ### Docker Deployment (Recommended)
 
+The application runs in CPU-only mode using NVIDIA CUDA runtime libraries (no GPU required).
+
 ```bash
 # Build the Docker image
-docker build -t mct8-docking .
+docker build -t mct8-docking:latest .
 
 # Run the container
-docker run -d -p 5000:5000 --name mct8-docking mct8-docking
+docker run -d -p 5000:5000 --name mct8-docking-app \
+  -v $(pwd)/results:/usr/src/app/results \
+  mct8-docking:latest
 
 # Access the application
 open http://localhost:5000
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+**Container Management:**
+```bash
+# View logs
+docker logs -f mct8-docking-app
+
+# Stop container
+docker stop mct8-docking-app
+
+# Restart container
+docker start mct8-docking-app
+
+# Remove container
+docker rm -f mct8-docking-app
 ```
 
 ### Local Development
@@ -64,7 +86,7 @@ python app.py
    - **Number of Poses**: 1-50 (default: 3)
    - **Exhaustiveness**: 2-128 (default: 8) - higher = more thorough search
    - **Search Box**: 0-10 Å (default: 6) - expansion around binding site
-   - **CNN Scoring**: fast/default/none
+   - **CNN Scoring**: none/fast/default (default: none for CPU-only compatibility)
 
 3. **Run Docking**:
    - Click "Run Docking" to execute simulation
@@ -190,9 +212,12 @@ The MCT8 protein structure is based on computational modeling for the thyroid ca
 - **reportlab**: PDF generation
 
 ### System Requirements
-- Python 3.10+
-- 2GB RAM minimum (4GB recommended for larger batches)
-- Docker (for containerized deployment)
+- **Python**: 3.10+ (for local development)
+- **RAM**: 2GB minimum (4GB recommended for larger batches)
+- **Docker**: For containerized deployment (recommended)
+- **CPU**: Multi-core recommended (Gnina uses `--cpu 4` flag)
+
+**Note**: The Docker image uses NVIDIA CUDA 12.0 runtime libraries for Gnina compatibility, but **no GPU is required**. The application runs entirely on CPU using Gnina's `--cpu` mode.
 
 ## Development
 
@@ -219,11 +244,24 @@ python -c "import docking; print(docking.validate_smiles(['CCO', 'INVALID']))"
 
 ## Troubleshooting
 
+### CUDA Library Errors (libcudart.so, libcusparse.so, etc.)
+
+The Gnina binary requires CUDA runtime libraries even in CPU-only mode. The Docker image includes these automatically. For local development:
+
+```bash
+# The Docker image handles this automatically
+# If running locally outside Docker, you may need CUDA runtime libraries
+# See: https://developer.nvidia.com/cuda-downloads
+```
+
+**Solution**: Use the Docker deployment (recommended) which includes all required CUDA runtime libraries.
+
 ### Gnina Download Fails
 ```bash
-# Manually download Gnina
+# Manually download Gnina v1.3
 wget https://github.com/gnina/gnina/releases/download/v1.3/gnina
 chmod +x gnina
+mkdir -p binaries/
 mv gnina binaries/
 ```
 
@@ -233,7 +271,7 @@ mv gnina binaries/
 docker system prune -a
 
 # Rebuild without cache
-docker build --no-cache -t mct8-docking .
+docker build --no-cache -t mct8-docking:latest .
 ```
 
 ### RDKit Import Error
@@ -243,6 +281,19 @@ conda install -c conda-forge rdkit
 
 # Or use pip (may require system dependencies)
 pip install rdkit
+```
+
+### Container Won't Start
+```bash
+# Check logs for errors
+docker logs mct8-docking-app
+
+# Verify port 5000 is not in use
+lsof -i :5000
+
+# Remove and recreate container
+docker rm -f mct8-docking-app
+docker run -d -p 5000:5000 --name mct8-docking-app mct8-docking:latest
 ```
 
 ## Citation
