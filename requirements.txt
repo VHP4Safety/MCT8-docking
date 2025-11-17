@@ -5,3 +5,4 @@ rdkit==2023.9.1
 pandas>=2.1.0
 reportlab==4.0.7
 Werkzeug==3.0.1
+openbabel-wheel==3.1.1.22

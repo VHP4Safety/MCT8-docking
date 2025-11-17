@@ -140,7 +140,7 @@ def dock():
             'num_modes': int(request.form.get('num_modes', 3)),
             'exhaustiveness': int(request.form.get('exhaustiveness', 8)),
             'autobox_add': float(request.form.get('autobox_add', 6.0)),
-            'cnn': request.form.get('cnn', 'fast')
+            'cnn': request.form.get('cnn', 'none')  # Default to 'none' (CPU-only)
         }
 
         logger.info(f"Running docking with parameters: {params}")
@@ -248,7 +248,7 @@ def api_dock():
             'num_modes': params.get('num_modes', 3),
             'exhaustiveness': params.get('exhaustiveness', 8),
             'autobox_add': params.get('autobox_add', 6.0),
-            'cnn': params.get('cnn', 'fast')
+            'cnn': params.get('cnn', 'none')  # Default to 'none' (CPU-only, no CUDA required)
         }
 
         # Run docking
