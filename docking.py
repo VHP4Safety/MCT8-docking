@@ -55,7 +55,8 @@ MCT8_RECEPTOR_FILE = "data/mct8_receptor_full.pdb"
 
 def setup_environment():
     """
-    Download and setup Gnina docking software if not present.
+    Download and setup Gnina (GPU and CPU-capable docking software).
+    Gnina can run in CPU-only mode using --cpu flag.
 
     Returns:
         Path: Path to gnina executable
@@ -63,10 +64,11 @@ def setup_environment():
     gnina_path = Path("binaries/gnina")
 
     if not gnina_path.exists():
-        logger.info("Downloading Gnina v1.3...")
+        logger.info("Downloading Gnina v1.3 (CPU-capable)...")
         gnina_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
+            # Download Gnina binary for Linux
             subprocess.run([
                 "wget",
                 "-O", str(gnina_path),
@@ -206,19 +208,19 @@ def prepare_ligands(smiles_list, output_file="ligands.sdf",
 
 def run_docking(ligand_file, receptor_file, site_file,
                 num_modes=3, exhaustiveness=8, autobox_add=6.0,
-                cnn="fast", output_file="output.sdf", log_file="output.txt"):
+                cnn="none", output_file="output.sdf", log_file="output.txt"):
     """
-    Run Gnina molecular docking.
+    Run Gnina molecular docking with CPU-only mode support.
 
     Args:
         ligand_file (str): Path to ligand SDF file
         receptor_file (str): Path to receptor PDB file
-        site_file (str): Path to binding site PDB file
+        site_file (str): Path to binding site PDB file (for autobox)
         num_modes (int): Number of binding modes to generate
         exhaustiveness (int): Search exhaustiveness
         autobox_add (float): Autobox expansion in Angstroms
         cnn (str): CNN scoring model ('none', 'fast', 'default')
-        output_file (str): Output SDF file
+        output_file (str): Output file
         log_file (str): Log file
 
     Returns:
@@ -235,22 +237,29 @@ def run_docking(ligand_file, receptor_file, site_file,
     # Build Gnina command
     cmd = [
         str(gnina_path),
-        "--receptor", receptor_file,
-        "--ligand", ligand_file,
+        "-r", receptor_file,
+        "-l", ligand_file,
         "--autobox_ligand", site_file,
+        "--autobox_add", str(autobox_add),
+        "-o", output_file,
         "--num_modes", str(num_modes),
         "--exhaustiveness", str(exhaustiveness),
-        "--autobox_add", str(autobox_add),
-        "--scoring", "vina",
-        "--cnn", cnn,
-        "--min_rmsd_filter", "1",
-        "--pose_sort_order", "energy",
-        "--stripH", "off",
-        "--out", output_file,
-        "--log", log_file
+        "--cpu", "4"  # CPU-only mode (no CUDA required)
     ]
 
-    logger.info(f"Running Gnina docking: {' '.join(cmd)}")
+    # Handle CNN scoring
+    if cnn == "none":
+        cmd.extend(["--cnn_scoring", "none"])
+    elif cnn == "fast":
+        cmd.extend(["--cnn", "crossdock_default2018"])
+    elif cnn == "default":
+        cmd.extend(["--cnn", "default2017"])
+
+    # Add log file
+    if log_file:
+        cmd.extend(["--log", log_file])
+
+    logger.info(f"Running Gnina docking (CPU mode): {' '.join(cmd)}")
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)

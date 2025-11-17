@@ -58,6 +58,7 @@
                 <input type="text"
                        id="smiles"
                        name="smiles"
+                       value="COC1=C(C=CC(=C1)[C@H]2[C@@H](C3=C(O2)C(=CC(=C3)[C@@H]4[C@H](C(=O)C5=C(C=C(C=C5O4)O)O)O)O)CO)O"
                        placeholder="COC1=C(C=CC(=C1)[C@H]2[C@@H]..., c1ccccc1, ..."
                        class="form-control">
                 <small>Default: Silychristin (MCT8 inhibitor)</small>
@@ -135,10 +136,11 @@
                     <div class="param-item">
                         <label for="cnn">CNN Scoring:</label>
                         <select id="cnn" name="cnn" class="form-select">
-                            <option value="fast" selected>Fast</option>
-                            <option value="default">Default</option>
-                            <option value="none">None</option>
+                            <option value="none" selected>None (Empirical scoring - CPU)</option>
+                            <option value="fast">Fast CNN (CPU mode)</option>
+                            <option value="default">Default CNN (CPU mode)</option>
                         </select>
+                        <small style="color: #666; font-size: 0.85em;">Gnina runs in CPU-only mode (--no_gpu). CNN scoring available but slower on CPU.</small>
                     </div>
                 </div>
             </div>

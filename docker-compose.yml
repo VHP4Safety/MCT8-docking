@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  mct8-docking:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mct8-docking:latest
+    container_name: mct8-docking-app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+    volumes:
+      # Optional: mount results directory for persistence
+      - ./results:/usr/src/app/results
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

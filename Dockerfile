@@ -1,10 +1,12 @@
-FROM python:3.10-slim
+FROM nvidia/cuda:12.0.1-runtime-ubuntu22.04
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install Python 3.10 and system dependencies
 RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
     wget \
     libxrender1 \
     libexpat1 \
@@ -13,6 +15,11 @@ RUN apt-get update && apt-get install -y \
     libboost-all-dev \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Create python symlink (pip already exists)
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python
+
+# CUDA runtime libraries are already included in nvidia/cuda:12.0.1-runtime image
 
 # Set working directory
 WORKDIR /usr/src/app
