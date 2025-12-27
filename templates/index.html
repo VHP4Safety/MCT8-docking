@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MCT8 Docking - VHP4Safety</title>
+    <title>Predict binding to mct8 - VHP4Safety</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 
     <!-- DataTables CSS -->
@@ -19,6 +19,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.html5.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.0/js/buttons.print.min.js"></script>
+
+    <!-- 3Dmol.js Library -->
+    <script src="https://3dmol.org/build/3Dmol-min.js"></script>
 </head>
 <body>
     <!-- Logo -->
@@ -26,8 +29,8 @@
 
     <!-- Header -->
     <header>
-        <h1>MCT8 Docking Simulation</h1>
-        <p>Predict inhibitor binding to Monocarboxylate Transporter 8</p>
+        <h1>MCT8 Binding Affinity Prediction</h1>
+        <p>Assess binding affinity to Monocarboxylate Transporter 8 (MCT8)</p>
     </header>
 
     <!-- Main Container -->
@@ -166,11 +169,19 @@
         <div class="info-panel">
             <h4>Interpretation Guide</h4>
             <ul>
-                <li><strong style="color: #E6007E;">Strong Inhibitor:</strong> Affinity &lt; -9.0 kcal/mol</li>
-                <li><strong style="color: #FF9500;">Moderate Inhibitor:</strong> Affinity -8.0 to -9.0 kcal/mol</li>
-                <li><strong style="color: #4CAF50;">Weak/Non-Inhibitor:</strong> Affinity &gt; -8.0 kcal/mol</li>
+                <li><strong style="color: #E6007E;">Likely Inhibitor:</strong> Affinity &lt; -9.0 kcal/mol</li>
+                <li><strong style="color: #FF9500;">Possible Inhibitor:</strong> Affinity -8.0 to -9.0 kcal/mol</li>
+                <li><strong style="color: #4CAF50;">Unlikely Inhibitor:</strong> Affinity &gt; -8.0 kcal/mol</li>
             </ul>
             <p><strong>Total Poses:</strong> {{ num_poses }}</p>
+            <div class="download-section" style="margin-top: 15px;">
+                <a href="/download/sdf" class="btn btn-secondary" style="text-decoration: none;">
+                    Download Complete SDF File
+                </a>
+                <small style="display: block; margin-top: 8px; color: #666;">
+                    Contains all {{ num_poses }} docked poses with 3D coordinates
+                </small>
+            </div>
         </div>
 
         <!-- Results Table -->
@@ -189,7 +200,7 @@
                 </thead>
                 <tbody>
                     {% for row in results %}
-                    <tr>
+                    <tr onclick="showPose({{ loop.index0 }})" class="clickable-row" style="cursor: pointer;">
                         <td>
                             {% if row.structure_img %}
                                 <img src="{{ row.structure_img }}"
@@ -262,6 +273,377 @@
             });
             {% endif %}
         });
+
+        // ========================================
+        // 3D Molecular Viewer Implementation
+        // ========================================
+
+        let viewer = null;
+        let currentPoseData = null;
+        let receptorPDB = null;
+        let bindingSitePDB = null;
+        let multiPoseMode = false;
+        let loadedPoses = [];
+        const MAX_MULTI_POSES = 5;
+        const POSE_COLORS = ['magentaCarbon', 'cyanCarbon', 'yellowCarbon', 'greenCarbon', 'orangeCarbon'];
+
+        function initViewer() {
+            const container = document.getElementById('viewer-container');
+            container.innerHTML = '';
+
+            const config = {
+                backgroundColor: 'white',
+                antialias: false,        // Disable antialiasing for performance
+                cartoonQuality: 5         // Reduce quality from 10 to 5
+            };
+
+            viewer = $3Dmol.createViewer(container, config);
+            return viewer;
+        }
+
+        async function loadReceptorData() {
+            if (receptorPDB && bindingSitePDB) {
+                return; // Already cached
+            }
+
+            try {
+                const receptorResp = await fetch('/api/receptor');
+                if (!receptorResp.ok) throw new Error('Failed to load receptor');
+                const receptorData = await receptorResp.json();
+                receptorPDB = receptorData.pdb;
+
+                const siteResp = await fetch('/api/binding_site');
+                if (!siteResp.ok) throw new Error('Failed to load binding site');
+                const siteData = await siteResp.json();
+                bindingSitePDB = siteData.pdb;
+            } catch (error) {
+                console.error('Error loading receptor data:', error);
+                throw error;
+            }
+        }
+
+        function renderReceptor() {
+            if (!viewer || !receptorPDB) return;
+
+            viewer.addModel(receptorPDB, 'pdb');
+            viewer.setStyle({}, {
+                cartoon: {
+                    color: '#F5F5DC',
+                    thickness: 0.5,
+                    opacity: 0.8
+                }
+            });
+        }
+
+        function renderBindingSite() {
+            if (!viewer || !bindingSitePDB) return;
+
+            viewer.addModel(bindingSitePDB, 'pdb');
+            viewer.setStyle({resn: 'SIT'}, {
+                stick: {
+                    radius: 0.2,
+                    colorscheme: 'orangeCarbon'
+                }
+            });
+        }
+
+        function renderLigand(pdbData, colorScheme = 'magentaCarbon') {
+            if (!viewer || !pdbData) return;
+
+            viewer.addModel(pdbData, 'pdb');
+            viewer.setStyle({resn: 'LIG'}, {
+                stick: {
+                    radius: 0.25,
+                    colorscheme: colorScheme
+                }
+            });
+        }
+
+        async function loadMultiplePoses(basePoseId) {
+            if (!viewer) return;
+
+            // Clear existing ligands (keep receptor and binding site)
+            while (viewer.getModel(2)) {
+                viewer.removeModel(2);
+            }
+
+            loadedPoses = [];
+            const promises = [];
+
+            for (let i = 0; i < MAX_MULTI_POSES; i++) {
+                promises.push(
+                    fetch(`/api/pose/${basePoseId + i}`)
+                        .then(resp => resp.ok ? resp.json() : null)
+                        .catch(() => null)
+                );
+            }
+
+            const results = await Promise.all(promises);
+
+            results.forEach((poseData, index) => {
+                if (poseData) {
+                    renderLigand(poseData.pdb, POSE_COLORS[index]);
+                    loadedPoses.push({
+                        id: basePoseId + index,
+                        data: poseData,
+                        color: POSE_COLORS[index]
+                    });
+                }
+            });
+
+            if (loadedPoses.length > 0) {
+                viewer.zoomTo({resn: 'LIG'}, 1000);
+                updateMultiPoseInfo();
+            }
+
+            viewer.render();
+        }
+
+        function updateMultiPoseInfo() {
+            const infoBox = document.getElementById('pose-info');
+
+            if (multiPoseMode && loadedPoses.length > 1) {
+                let html = '<h4>Multiple Poses Loaded</h4>';
+                loadedPoses.forEach((pose, idx) => {
+                    const assessment = pose.data.assessment || {};
+                    html += `
+                        <div class="info-row">
+                            <span class="label" style="color: ${getColorHex(POSE_COLORS[idx])}">Pose ${pose.id}:</span>
+                            <span class="value">
+                                ${pose.data.affinity ? pose.data.affinity.toFixed(2) + ' kcal/mol' : 'N/A'}
+                                <span class="badge" style="background-color: ${assessment.color || '#999'}; color: white; margin-left: 8px;">
+                                    ${assessment.category || 'Unknown'}
+                                </span>
+                            </span>
+                        </div>
+                    `;
+                });
+                infoBox.innerHTML = html;
+            } else if (loadedPoses.length === 1) {
+                updatePoseInfo(loadedPoses[0].data);
+            }
+        }
+
+        function getColorHex(colorScheme) {
+            const colorMap = {
+                'magentaCarbon': '#E6007E',
+                'cyanCarbon': '#00BCD4',
+                'yellowCarbon': '#FFEB3B',
+                'greenCarbon': '#4CAF50',
+                'orangeCarbon': '#FF9500'
+            };
+            return colorMap[colorScheme] || '#000000';
+        }
+
+        function showLoading() {
+            const container = document.getElementById('viewer-container');
+            container.innerHTML = `
+                <div class="viewer-loading">
+                    <div class="spinner"></div>
+                    <p>Loading 3D structure...</p>
+                </div>
+            `;
+        }
+
+        async function showPose(poseId) {
+            const modal = document.getElementById('viewer-modal');
+
+            try {
+                modal.style.display = 'block';
+                showLoading();
+
+                await loadReceptorData();
+
+                initViewer();
+                renderReceptor();
+                renderBindingSite();
+
+                if (multiPoseMode) {
+                    await loadMultiplePoses(poseId);
+                } else {
+                    const response = await fetch(`/api/pose/${poseId}`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to load pose ${poseId}`);
+                    }
+
+                    currentPoseData = await response.json();
+                    loadedPoses = [{id: poseId, data: currentPoseData, color: 'magentaCarbon'}];
+
+                    renderLigand(currentPoseData.pdb, 'magentaCarbon');
+                    viewer.zoomTo({resn: 'LIG'}, 1000);
+                    updatePoseInfo(currentPoseData);
+                }
+
+                viewer.render();
+            } catch (error) {
+                console.error('Error showing pose:', error);
+                alert(`Error loading 3D structure: ${error.message}`);
+                closeViewer();
+            }
+        }
+
+        function updatePoseInfo(data) {
+            document.getElementById('info-smiles').textContent = data.smiles || 'N/A';
+
+            if (data.affinity !== null && data.affinity !== undefined) {
+                document.getElementById('info-affinity').textContent =
+                    `${data.affinity.toFixed(2)} kcal/mol`;
+            } else {
+                document.getElementById('info-affinity').textContent = 'N/A';
+            }
+
+            if (data.cnn_score !== null && data.cnn_score !== undefined) {
+                document.getElementById('info-cnn').textContent = data.cnn_score.toFixed(3);
+            } else {
+                document.getElementById('info-cnn').textContent = 'N/A';
+            }
+
+            const assessmentEl = document.getElementById('info-assessment');
+            if (data.assessment) {
+                assessmentEl.textContent = data.assessment.category;
+                assessmentEl.style.backgroundColor = data.assessment.color;
+            } else {
+                assessmentEl.textContent = 'Unknown';
+                assessmentEl.style.backgroundColor = '#999999';
+            }
+        }
+
+        function toggleCartoon() {
+            if (!viewer) return;
+
+            const checked = document.getElementById('toggle-cartoon').checked;
+
+            if (checked) {
+                viewer.setStyle({model: 0}, {
+                    cartoon: {
+                        color: '#F5F5DC',
+                        thickness: 0.5,
+                        opacity: 0.8
+                    }
+                });
+            } else {
+                viewer.setStyle({model: 0}, {});
+            }
+
+            viewer.render();
+        }
+
+        function toggleSite() {
+            if (!viewer) return;
+
+            const checked = document.getElementById('toggle-site').checked;
+
+            if (checked) {
+                viewer.setStyle({resn: 'SIT'}, {
+                    stick: {
+                        radius: 0.2,
+                        colorscheme: 'orangeCarbon'
+                    }
+                });
+            } else {
+                viewer.setStyle({resn: 'SIT'}, {});
+            }
+
+            viewer.render();
+        }
+
+        function toggleMultiPose() {
+            if (!viewer) return;
+
+            multiPoseMode = document.getElementById('toggle-multipose').checked;
+
+            if (loadedPoses.length > 0) {
+                const basePoseId = loadedPoses[0].id;
+                showPose(basePoseId);
+            }
+        }
+
+        function resetView() {
+            if (!viewer) return;
+            viewer.zoomTo({resn: 'LIG'}, 1000);
+            viewer.render();
+        }
+
+        function closeViewer() {
+            const modal = document.getElementById('viewer-modal');
+            modal.style.display = 'none';
+
+            if (viewer) {
+                viewer.clear();
+                viewer = null;
+            }
+
+            currentPoseData = null;
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('viewer-modal');
+            if (event.target === modal) {
+                closeViewer();
+            }
+        };
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeViewer();
+            }
+        });
     </script>
+
+    <!-- 3D Viewer Modal -->
+    <div id="viewer-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="viewer-title">3D Molecular Viewer</h3>
+                <button class="modal-close" onclick="closeViewer()">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Pose Info Panel -->
+                <div id="pose-info" class="info-box">
+                    <div class="info-row">
+                        <span class="label">SMILES:</span>
+                        <span id="info-smiles" class="value"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Affinity:</span>
+                        <span id="info-affinity" class="value"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">CNN Score:</span>
+                        <span id="info-cnn" class="value"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Assessment:</span>
+                        <span id="info-assessment" class="badge"></span>
+                    </div>
+                </div>
+
+                <!-- 3D Viewer Container -->
+                <div id="viewer-container" style="width: 100%; height: 600px; position: relative;"></div>
+
+                <!-- Controls Panel -->
+                <div class="controls-panel">
+                    <label class="control-label">
+                        <input type="checkbox" id="toggle-multipose" onchange="toggleMultiPose()">
+                        <span>Multi-Pose View (Top 5)</span>
+                    </label>
+                    <label class="control-label">
+                        <input type="checkbox" id="toggle-cartoon" checked onchange="toggleCartoon()">
+                        <span>Show Cartoon</span>
+                    </label>
+                    <label class="control-label">
+                        <input type="checkbox" id="toggle-site" onchange="toggleSite()">
+                        <span>Show Binding Site</span>
+                    </label>
+                    <button class="btn btn-secondary btn-sm" onclick="resetView()">Reset View</button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeViewer()">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

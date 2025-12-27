@@ -1,10 +1,12 @@
 # MCT8 Docking - VHP4Safety
 
-Molecular docking web application for predicting inhibitor binding to Monocarboxylate Transporter 8 (MCT8), part of the Virtual Human Platform for Safety (VHP4Safety) thyroid case study.
+Molecular docking web application for predicting binding affinity to Monocarboxylate Transporter 8 (MCT8), part of the Virtual Human Platform for Safety (VHP4Safety) thyroid case study.
 
 ## Overview
 
-MCT8 (Monocarboxylate Transporter 8) is critical for thyroid hormone transport during early embryonic development. Inhibition of MCT8 can lead to developmental disorders and other adverse outcomes. This tool helps assess the inhibition risk of chemical compounds using neural network-enhanced molecular docking with Gnina.
+MCT8 (Monocarboxylate Transporter 8, also known as SLC16A2) is essential for thyroid hormone transport across cell membranes, particularly critical during early embryonic brain development. MCT8 facilitates the uptake of thyroid hormones (T3 and T4) into developing neurons, which is vital for proper neurological development in the first trimester.
+
+Inhibition of MCT8 can disrupt thyroid hormone availability in the developing brain, potentially leading to developmental disorders and adverse neurodevelopmental outcomes. This tool predicts binding affinity of chemical compounds to MCT8 using neural network-enhanced molecular docking with Gnina, helping assess potential inhibition risk early in chemical design and drug development.
 
 ## Features
 
@@ -93,9 +95,10 @@ python app.py
    - Or "Generate PDF Report" for downloadable report
 
 4. **Interpret Results**:
-   - **Strong Inhibitors**: Affinity < -9.0 kcal/mol (High risk)
-   - **Moderate Inhibitors**: -8.0 to -9.0 kcal/mol (Moderate risk)
-   - **Weak/Non-Inhibitors**: > -8.0 kcal/mol (Low risk)
+   - Binding affinity is reported in kcal/mol (more negative = stronger binding)
+   - **Likely Inhibitor**: Binding affinity < -9.0 kcal/mol (High developmental risk)
+   - **Possible Inhibitor**: Binding affinity -8.0 to -9.0 kcal/mol (Moderate risk)
+   - **Unlikely Inhibitor**: Binding affinity > -8.0 kcal/mol (Low risk)
 
 ### REST API
 
@@ -194,9 +197,9 @@ MCT8-docking/
 
 ### Scoring
 
-- **Affinity**: Binding free energy (kcal/mol) - primary metric
-- **CNN Score**: Neural network confidence (0-1)
-- **Boltzmann Weight**: Thermodynamic probability of pose
+- **Binding Affinity**: Estimated free energy of binding between the ligand and MCT8 receptor (kcal/mol). More negative values indicate stronger binding interactions and higher likelihood of MCT8 inhibition. This is the primary metric for assessing inhibition risk.
+- **CNN Score**: Neural network confidence score (0-1) when CNN scoring is enabled
+- **Boltzmann Weight**: Thermodynamic probability of each binding pose, calculated from binding affinity and temperature. Higher weights indicate more energetically favorable conformations.
 
 ### MCT8 Receptor Model
 
