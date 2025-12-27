@@ -828,13 +828,10 @@
             const checked = document.getElementById('toggle-site').checked;
 
             if (checked) {
-                viewer.setStyle({resn: 'SIT'}, {
-                    stick: {
-                        radius: 0.2,
-                        colorscheme: 'orangeCarbon'
-                    }
-                });
+                // Add the binding site model and style it
+                renderBindingSite();
             } else {
+                // Hide by setting empty style
                 viewer.setStyle({resn: 'SIT'}, {});
             }
 
