@@ -33,21 +33,33 @@
         <p>Assess binding affinity to Monocarboxylate Transporter 8 (MCT8)</p>
     </header>
 
-    <!-- Documentation Access Button -->
-    <div style="text-align: center; margin: 20px 0;">
-        <button onclick="openDocTabs()" style="
-            background-color: #005A6C;
-            color: white;
-            padding: 12px 24px;
-            font-size: 1.1em;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        " onmouseover="this.style.backgroundColor='#004552'" onmouseout="this.style.backgroundColor='#005A6C'">
-            📚 View Documentation & Help
+    <!-- Tab Navigation -->
+    <nav class="tab-navigation" role="tablist">
+        <button class="tab-button active"
+                id="tab-docking"
+                data-tab="docking"
+                role="tab"
+                aria-selected="true"
+                aria-controls="docking-panel"
+                onclick="switchTab('docking')">
+            🧬 Docking
         </button>
-    </div>
+        <button class="tab-button"
+                id="tab-documentation"
+                data-tab="documentation"
+                role="tab"
+                aria-selected="false"
+                aria-controls="documentation-panel"
+                onclick="switchTab('documentation')">
+            📚 Documentation
+        </button>
+    </nav>
+
+    <!-- Tab Content Wrapper -->
+    <div class="tab-content-wrapper">
+
+        <!-- Docking Tab Panel -->
+        <div id="docking-panel" class="tab-panel active" role="tabpanel" aria-labelledby="tab-docking">
 
     <!-- Main Container -->
     <div class="container">
@@ -247,6 +259,176 @@
         </div>
     </div>
     {% endif %}
+
+        </div> <!-- End docking-panel -->
+
+        <!-- Documentation Tab Panel -->
+        <div id="documentation-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-documentation">
+            <div class="documentation-container">
+                <!-- Sidebar Navigation -->
+                <aside class="doc-sidebar">
+                    <nav class="doc-nav">
+                        <h3>Contents</h3>
+                        <ul>
+                            <li><a href="#getting-started" class="doc-link">Getting Started</a></li>
+                            <li><a href="#input-guide" class="doc-link">Input Guide</a></li>
+                            <li><a href="#parameters" class="doc-link">Docking Parameters</a></li>
+                            <li><a href="#results" class="doc-link">Results Interpretation</a></li>
+                            <li><a href="#viewer-3d" class="doc-link">3D Viewer Help</a></li>
+                            <li><a href="#api" class="doc-link">API Documentation</a></li>
+                            <li><a href="#biology" class="doc-link">MCT8 Biology</a></li>
+                            <li><a href="#troubleshoot" class="doc-link">Troubleshooting</a></li>
+                            <li><a href="#about" class="doc-link">About</a></li>
+                        </ul>
+                    </nav>
+                </aside>
+
+                <!-- Main Documentation Content -->
+                <article class="doc-content">
+                    <h2>MCT8 Docking Documentation</h2>
+
+                    <!-- Getting Started -->
+                    <h3 id="getting-started">Getting Started</h3>
+                    <div class="info-box">
+                        <p><strong>What is this tool?</strong> This web application predicts the binding affinity between small molecules and MCT8 (Monocarboxylate Transporter 8), a critical protein in thyroid hormone transport.</p>
+                    </div>
+                    <h4>Your First Docking Simulation</h4>
+                    <ol>
+                        <li><strong>Enter a molecule</strong>: Use the default SMILES string or paste your own</li>
+                        <li><strong>Set parameters</strong>: Start with defaults (3 poses, exhaustiveness 8)</li>
+                        <li><strong>Run docking</strong>: Click "Run Docking" and wait 1-5 minutes</li>
+                        <li><strong>Review results</strong>: Check the binding affinity score and assessment</li>
+                        <li><strong>Visualize in 3D</strong>: Click any result row to see the binding pose</li>
+                    </ol>
+                    <p><strong>Quick Tips:</strong> 💡 Lower (more negative) binding affinity = stronger binding | 🔬 Scores below -9.0 kcal/mol indicate likely MCT8 inhibition | 🎨 Use multi-pose view to compare top 5 binding modes</p>
+
+                    <!-- Input Guide -->
+                    <h3 id="input-guide">Input Guide</h3>
+                    <h4>SMILES Strings</h4>
+                    <p>SMILES (Simplified Molecular Input Line Entry System) is a text notation for molecules.</p>
+                    <p><strong>Examples:</strong> <code>CCO</code> (Ethanol) | <code>c1ccccc1</code> (Benzene)</p>
+                    <h4>File Upload Formats</h4>
+                    <ul>
+                        <li><strong>SDF (.sdf)</strong>: Pre-prepared 3D structures (recommended for multiple molecules)</li>
+                        <li><strong>SMILES (.smi, .txt)</strong>: One SMILES per line</li>
+                        <li><strong>CSV (.csv)</strong>: Must contain a 'SMILES' column</li>
+                    </ul>
+                    <h4>Ligand Preparation Options</h4>
+                    <p><strong>Add Hydrogens:</strong> Essential for accurate docking (keep checked) | <strong>Generate 3D:</strong> Creates 3D coordinates from SMILES (recommended) | <strong>Optimize Geometry:</strong> MMFF force field optimization (recommended)</p>
+
+                    <!-- Parameters -->
+                    <h3 id="parameters">Docking Parameters Explained</h3>
+                    <h4>Number of Poses (1-50, default: 3)</h4>
+                    <p>How many different binding orientations to generate. More poses = better sampling but longer computation time.</p>
+                    <h4>Exhaustiveness (2-128, default: 8)</h4>
+                    <p>Search thoroughness. Higher values increase accuracy but take longer. Use 8 for standard runs, 16+ for publication-quality results.</p>
+                    <h4>Search Box (0-10 Å, default: 6)</h4>
+                    <p>Expansion around the binding site. Larger values allow more exploration but increase search space. 6Å is optimal for most cases.</p>
+                    <h4>CNN Scoring (none/fast/default, default: none)</h4>
+                    <p>Neural network rescoring. Set to "none" for CPU-only mode. Use "fast" or "default" if you have a GPU for improved accuracy.</p>
+
+                    <!-- Results Interpretation -->
+                    <h3 id="results">Results Interpretation</h3>
+                    <h4>Binding Affinity Scale</h4>
+                    <ul>
+                        <li><strong style="color: #E6007E;">< -9.0 kcal/mol</strong>: Likely Inhibitor (High developmental risk)</li>
+                        <li><strong style="color: #FFA500;">-8.0 to -9.0 kcal/mol</strong>: Possible Inhibitor (Moderate risk)</li>
+                        <li><strong style="color: #28A745;">> -8.0 kcal/mol</strong>: Unlikely Inhibitor (Low risk)</li>
+                    </ul>
+                    <h4>Understanding Scores</h4>
+                    <p><strong>Binding Affinity:</strong> Estimated free energy of binding (kcal/mol). More negative = stronger binding = higher likelihood of MCT8 inhibition.</p>
+                    <p><strong>CNN Score:</strong> Neural network confidence score (0-1) when CNN scoring is enabled. Higher = more confident prediction.</p>
+                    <p><strong>Boltzmann Weight:</strong> Thermodynamic probability of each binding pose. Higher weights indicate more energetically favorable conformations.</p>
+
+                    <!-- 3D Viewer Help -->
+                    <h3 id="viewer-3d">3D Viewer Help</h3>
+                    <h4>Opening the Viewer</h4>
+                    <p>Click any row in the results table to open the 3D molecular viewer showing the receptor, binding site, and ligand pose.</p>
+                    <h4>Mouse Controls</h4>
+                    <ul>
+                        <li><strong>Rotate:</strong> Left-click and drag</li>
+                        <li><strong>Zoom:</strong> Scroll wheel or pinch gesture</li>
+                        <li><strong>Pan:</strong> Right-click and drag</li>
+                    </ul>
+                    <h4>Display Options</h4>
+                    <p><strong>Show Receptor Cartoon:</strong> Toggle protein backbone visualization | <strong>Show Binding Site:</strong> Highlight key residues in the binding pocket | <strong>Multi-Pose View:</strong> Overlay top 5 poses in different colors for comparison</p>
+
+                    <!-- API Documentation -->
+                    <h3 id="api">API Documentation</h3>
+                    <h4>Endpoint: POST /api</h4>
+                    <p><strong>Request:</strong></p>
+                    <pre><code>{
+  "smiles": ["CCO", "c1ccccc1"],
+  "params": {
+    "num_modes": 3,
+    "exhaustiveness": 8,
+    "autobox_add": 6.0,
+    "cnn": "none"
+  },
+  "format": "json"
+}</code></pre>
+                    <p><strong>Response:</strong></p>
+                    <pre><code>{
+  "success": true,
+  "num_poses": 6,
+  "results": [
+    {
+      "pose_index": 0,
+      "smiles": "CCO",
+      "affinity": -5.2,
+      "assessment": "Unlikely Inhibitor"
+    }
+  ]
+}</code></pre>
+                    <h4>Output Formats</h4>
+                    <p><code>"format": "json"</code> - JSON response (default) | <code>"format": "csv"</code> - CSV file | <code>"format": "sdf"</code> - SDF file with 3D structures</p>
+                    <h4>Additional Endpoints</h4>
+                    <p><code>GET /api/receptor</code> - MCT8 protein structure | <code>GET /api/binding_site</code> - Binding site coordinates | <code>GET /api/pose/{pose_id}</code> - Individual pose data</p>
+
+                    <!-- MCT8 Biology -->
+                    <h3 id="biology">MCT8 Biology & Importance</h3>
+                    <h4>What is MCT8?</h4>
+                    <p>MCT8 (Monocarboxylate Transporter 8, also known as SLC16A2) is a thyroid hormone transporter essential for delivering T3 and T4 hormones across cell membranes, particularly in the developing brain.</p>
+                    <h4>Why is MCT8 Important?</h4>
+                    <p>During the first trimester of pregnancy, MCT8 facilitates thyroid hormone uptake into developing neurons, which is critical for proper brain development. Mutations in MCT8 cause Allan-Herndon-Dudley syndrome, a severe neurodevelopmental disorder.</p>
+                    <h4>Inhibition Risks</h4>
+                    <p>Chemicals that inhibit MCT8 can disrupt thyroid hormone availability in the developing brain, potentially leading to developmental delays, cognitive impairment, and other adverse neurodevelopmental outcomes. Identifying MCT8 inhibitors early in chemical design helps prevent developmental toxicity.</p>
+                    <h4>VHP4Safety Context</h4>
+                    <p>This tool is part of the Virtual Human Platform for Safety (VHP4Safety) thyroid case study, which aims to develop in silico methods for predicting chemical disruption of thyroid hormone pathways.</p>
+
+                    <!-- Troubleshooting -->
+                    <h3 id="troubleshoot">Troubleshooting</h3>
+                    <h4>Invalid SMILES Error</h4>
+                    <p><strong>Solution:</strong> Verify SMILES syntax using a chemical structure editor like PubChem or ChemDraw. Ensure proper capitalization (C vs c for aromatic).</p>
+                    <h4>Docking Timeout</h4>
+                    <p><strong>Solution:</strong> Reduce exhaustiveness parameter or number of poses. Large molecules may require longer computation time.</p>
+                    <h4>3D Viewer Not Loading</h4>
+                    <p><strong>Solution:</strong> Ensure WebGL is enabled in your browser. Try a different browser (Chrome/Firefox recommended). Clear browser cache.</p>
+                    <h4>Multi-Pose Colors Not Showing</h4>
+                    <p><strong>Solution:</strong> Ensure you've run docking first. Toggle the multi-pose checkbox. If issues persist, refresh the page and try again.</p>
+                    <h4>CSV Upload Format Error</h4>
+                    <p><strong>Solution:</strong> Ensure your CSV has a column named exactly "SMILES" (case-sensitive). One SMILES string per row.</p>
+                    <h4>Docker Container Won't Start</h4>
+                    <p><strong>Solution:</strong> Check if port 5000 is already in use: <code>lsof -i :5000</code>. View logs: <code>docker logs mct8-docking-app</code></p>
+
+                    <!-- About -->
+                    <h3 id="about">About This Tool</h3>
+                    <h4>Project Information</h4>
+                    <p>The MCT8 Binding Affinity Prediction tool is part of the <strong>Virtual Human Platform for Safety (VHP4Safety)</strong> initiative, developing computational models to predict chemical toxicity and reduce animal testing.</p>
+                    <h4>Technology Stack</h4>
+                    <p><strong>Backend:</strong> Python 3.10+, Flask, RDKit | <strong>Docking Engine:</strong> Gnina v1.3 | <strong>Frontend:</strong> HTML5, JavaScript, 3Dmol.js | <strong>Deployment:</strong> Docker (CPU-only)</p>
+                    <h4>Citation</h4>
+                    <p><strong>Gnina:</strong> Ragoza M, et al. Protein-Ligand Scoring with Convolutional Neural Networks. <em>J Chem Inf Model.</em> 2017;57(4):942-957.</p>
+                    <h4>Contact</h4>
+                    <p><strong>Website:</strong> <a href="https://www.vhp4safety.nl/" target="_blank">www.vhp4safety.nl</a> | <strong>GitHub:</strong> <a href="https://github.com/VHP4Safety" target="_blank">github.com/VHP4Safety</a></p>
+                    <div class="warning-box">
+                        <strong>Disclaimer:</strong> This tool provides computational predictions for research purposes. Results should be validated experimentally before making regulatory or clinical decisions.
+                    </div>
+                </article>
+            </div>
+        </div>
+
+    </div> <!-- End tab-content-wrapper -->
 
     <!-- Footer -->
     <footer>
@@ -676,13 +858,71 @@
             viewer.render();
         }
 
-        // Documentation Modal Functions
-        function openDocTabs() {
-            document.getElementById('doc-modal').style.display = 'block';
+        // ========================================
+        // Tab Navigation System
+        // ========================================
+
+        function switchTab(tabName) {
+            // Hide all panels
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active', 'fade-in');
+            });
+
+            // Deactivate all buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+                button.setAttribute('aria-selected', 'false');
+            });
+
+            // Activate selected tab
+            const targetPanel = document.getElementById(`${tabName}-panel`);
+            const targetButton = document.getElementById(`tab-${tabName}`);
+
+            if (targetPanel && targetButton) {
+                targetPanel.classList.add('active', 'fade-in');
+                targetButton.classList.add('active');
+                targetButton.setAttribute('aria-selected', 'true');
+                window.location.hash = tabName;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
 
-        function closeDocTabs() {
-            document.getElementById('doc-modal').style.display = 'none';
+        // Handle page load and browser navigation
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.slice(1);
+            switchTab(hash === 'documentation' ? 'documentation' : 'docking');
+        });
+
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.slice(1);
+            if (hash === 'docking' || hash === 'documentation') {
+                switchTab(hash);
+            }
+        });
+
+        // Smooth scrolling for documentation anchor links
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('doc-link')) {
+                const href = e.target.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                    e.preventDefault();
+                    const targetElement = document.getElementById(href.substring(1));
+                    if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }
+        });
+
+        // Mobile: Collapsible sidebar
+        if (window.innerWidth <= 768) {
+            const docSidebar = document.querySelector('.doc-sidebar');
+            const docSidebarTitle = document.querySelector('.doc-sidebar h3');
+            if (docSidebar && docSidebarTitle) {
+                docSidebarTitle.addEventListener('click', () => {
+                    docSidebar.classList.toggle('expanded');
+                });
+            }
         }
 
         function closeViewer() {
@@ -775,187 +1015,5 @@
         </div>
     </div>
 
-    <!-- Documentation Modal -->
-    <div id="doc-modal" style="
-        display: none;
-        position: fixed;
-        z-index: 2000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.7);
-    " onclick="if(event.target.id==='doc-modal') closeDocTabs()">
-        <div style="
-            background-color: white;
-            margin: 2% auto;
-            padding: 30px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 900px;
-            max-height: 85vh;
-            overflow-y: auto;
-            position: relative;
-        ">
-            <!-- Close Button -->
-            <button onclick="closeDocTabs()" style="
-                position: absolute;
-                top: 15px;
-                right: 20px;
-                background: none;
-                border: none;
-                font-size: 2em;
-                cursor: pointer;
-                color: #999;
-            ">&times;</button>
-
-            <!-- Documentation Content -->
-            <h2 style="color: #2C3E50; margin-top: 0;">MCT8 Docking Documentation</h2>
-
-            <!-- Table of Contents -->
-            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 30px;">
-                <strong>Contents:</strong>
-                <ul style="column-count: 2; column-gap: 20px; margin: 10px 0;">
-                    <li><a href="#getting-started" style="color: #005A6C;">Getting Started</a></li>
-                    <li><a href="#input-guide" style="color: #005A6C;">Input Guide</a></li>
-                    <li><a href="#parameters" style="color: #005A6C;">Docking Parameters</a></li>
-                    <li><a href="#results" style="color: #005A6C;">Results Interpretation</a></li>
-                    <li><a href="#viewer-3d" style="color: #005A6C;">3D Viewer Help</a></li>
-                    <li><a href="#api" style="color: #005A6C;">API Documentation</a></li>
-                    <li><a href="#biology" style="color: #005A6C;">MCT8 Biology</a></li>
-                    <li><a href="#troubleshoot" style="color: #005A6C;">Troubleshooting</a></li>
-                    <li><a href="#about" style="color: #005A6C;">About</a></li>
-                </ul>
-            </div>
-
-            <!-- Getting Started -->
-            <h3 id="getting-started" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px;">Getting Started</h3>
-            <div style="background-color: #e3f2fd; padding: 15px; border-left: 4px solid #005A6C; margin: 15px 0; border-radius: 4px;">
-                <p><strong>What is this tool?</strong> This web application predicts the binding affinity between small molecules and MCT8 (Monocarboxylate Transporter 8), a critical protein in thyroid hormone transport.</p>
-            </div>
-            <h4>Your First Docking Simulation</h4>
-            <ol style="line-height: 1.8;">
-                <li><strong>Enter a molecule</strong>: Use the default SMILES string or paste your own</li>
-                <li><strong>Set parameters</strong>: Start with defaults (3 poses, exhaustiveness 8)</li>
-                <li><strong>Run docking</strong>: Click "Run Docking" and wait 1-5 minutes</li>
-                <li><strong>Review results</strong>: Check the binding affinity score and assessment</li>
-                <li><strong>Visualize in 3D</strong>: Click any result row to see the binding pose</li>
-            </ol>
-            <p><strong>Quick Tips:</strong> 💡 Lower (more negative) binding affinity = stronger binding | 🔬 Scores below -9.0 kcal/mol indicate likely MCT8 inhibition | 🎨 Use multi-pose view to compare top 5 binding modes</p>
-
-            <!-- Input Guide -->
-            <h3 id="input-guide" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">Input Guide</h3>
-            <h4>SMILES Strings</h4>
-            <p>SMILES (Simplified Molecular Input Line Entry System) is a text notation for molecules.</p>
-            <p><strong>Examples:</strong> <code style="background: #f4f4f4; padding: 2px 6px; border-radius: 3px;">CCO</code> (Ethanol) | <code style="background: #f4f4f4; padding: 2px 6px; border-radius: 3px;">c1ccccc1</code> (Benzene)</p>
-            <h4>File Upload Formats</h4>
-            <ul style="line-height: 1.8;">
-                <li><strong>SDF (.sdf)</strong>: Pre-prepared 3D structures (recommended for multiple molecules)</li>
-                <li><strong>SMILES (.smi, .txt)</strong>: One SMILES per line</li>
-                <li><strong>CSV (.csv)</strong>: Must contain a 'SMILES' column</li>
-            </ul>
-            <h4>Ligand Preparation Options</h4>
-            <p><strong>Add Hydrogens:</strong> Essential for accurate docking (keep checked) | <strong>Generate 3D:</strong> Creates 3D coordinates from SMILES (recommended) | <strong>Optimize Geometry:</strong> MMFF force field optimization (recommended)</p>
-
-            <!-- Parameters -->
-            <h3 id="parameters" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">Docking Parameters Explained</h3>
-            <h4>Number of Poses (1-50, default: 3)</h4>
-            <p>How many binding orientations to generate per molecule. More poses = better coverage but longer runtime.</p>
-            <h4>Exhaustiveness (2-128, default: 8)</h4>
-            <p>Search thoroughness. Higher values = more reliable binding affinity predictions but slower computation.</p>
-            <h4>Search Box (0-10 Å, default: 6.0)</h4>
-            <p>Expansion of search space around binding site. 6 Å is standard for MCT8.</p>
-            <h4>CNN Scoring (default: none)</h4>
-            <p><strong>None:</strong> Fastest, CPU-friendly | <strong>Fast:</strong> Moderate accuracy | <strong>Default:</strong> Most accurate but slower</p>
-            <div style="background-color: #e3f2fd; padding: 10px; margin: 15px 0; border-radius: 4px;">
-                <strong>Note:</strong> This application runs in CPU-only mode. CNN scoring is significantly slower without GPU.
-            </div>
-
-            <!-- Results Interpretation -->
-            <h3 id="results" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">Results Interpretation</h3>
-            <h4>Binding Affinity (kcal/mol)</h4>
-            <p>Estimated free energy of binding. More negative = stronger binding = higher inhibition risk.</p>
-            <div style="display: flex; flex-direction: column; gap: 10px; margin: 15px 0;">
-                <div style="padding: 10px; background-color: #ffe6f0; border-left: 4px solid #E6007E; border-radius: 4px;">
-                    <strong>Likely Inhibitor (&lt; -9.0 kcal/mol)</strong>: High developmental risk
-                </div>
-                <div style="padding: 10px; background-color: #fff3e0; border-left: 4px solid #FF9500; border-radius: 4px;">
-                    <strong>Possible Inhibitor (-8.0 to -9.0 kcal/mol)</strong>: Moderate concern
-                </div>
-                <div style="padding: 10px; background-color: #e8f5e9; border-left: 4px solid #4CAF50; border-radius: 4px;">
-                    <strong>Unlikely Inhibitor (&gt; -8.0 kcal/mol)</strong>: Low risk
-                </div>
-            </div>
-            <p><em>⚠️ These are computational predictions. Experimental validation is required for regulatory decisions.</em></p>
-
-            <!-- 3D Viewer -->
-            <h3 id="viewer-3d" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">3D Viewer Help</h3>
-            <p><strong>Opening:</strong> Click any row in the results table to view the docked pose in 3D.</p>
-            <h4>Viewer Components</h4>
-            <p><span style="color: #F5F5DC; background: #333; padding: 2px 6px; border-radius: 3px;">Beige Cartoon</span>: MCT8 protein | <span style="color: #FF9500; background: #333; padding: 2px 6px; border-radius: 3px;">Orange Sticks</span>: Binding site | <span style="color: #E6007E; background: #333; padding: 2px 6px; border-radius: 3px;">Magenta Sticks</span>: Your molecule</p>
-            <h4>Mouse Controls</h4>
-            <p><strong>Rotate:</strong> Left click + drag | <strong>Zoom:</strong> Scroll wheel | <strong>Pan:</strong> Right click + drag | <strong>Reset:</strong> Click "Reset View" button</p>
-            <h4>Multi-Pose Analysis</h4>
-            <ol style="line-height: 1.8;">
-                <li>Click a result row to open viewer</li>
-                <li>Check "Multi-Pose View (Top 5)"</li>
-                <li>Viewer reloads with up to 5 poses overlaid in different colors</li>
-                <li>Info panel shows binding affinity for each colored pose</li>
-                <li>Compare binding orientations to identify consensus binding modes</li>
-            </ol>
-
-            <!-- API Documentation -->
-            <h3 id="api" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">API Documentation</h3>
-            <h4>POST /api</h4>
-            <p>Submit docking jobs programmatically. Example request:</p>
-            <pre style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto;"><code>{
-  "smiles": ["CCO", "c1ccccc1"],
-  "params": {"num_modes": 5, "exhaustiveness": 16},
-  "format": "json"
-}</code></pre>
-            <p><strong>Output Formats:</strong> <code>"json"</code> (default), <code>"csv"</code>, <code>"sdf"</code></p>
-            <h4>Additional Endpoints</h4>
-            <p><strong>GET /api/receptor</strong> - MCT8 receptor PDB | <strong>GET /api/binding_site</strong> - Binding site coordinates | <strong>GET /api/pose/&lt;id&gt;</strong> - Specific docked pose | <strong>GET /download/sdf</strong> - Complete SDF file</p>
-
-            <!-- MCT8 Biology -->
-            <h3 id="biology" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">MCT8 Biology</h3>
-            <p><strong>MCT8 (Monocarboxylate Transporter 8, SLC16A2)</strong> is a transmembrane protein that transports thyroid hormones (T3 and T4) across cell membranes.</p>
-            <h4>Why MCT8 Matters</h4>
-            <ul style="line-height: 1.8;">
-                <li><strong>Brain Development:</strong> Critical for thyroid hormone uptake in the developing brain</li>
-                <li><strong>Early Embryonic Development:</strong> Essential during first trimester for proper neurological development</li>
-                <li><strong>Genetic Disorders:</strong> Mutations cause Allan-Herndon-Dudley syndrome, a severe neurodevelopmental disorder</li>
-            </ul>
-            <div style="background-color: #fffacd; padding: 10px; margin: 15px 0; border-radius: 4px;">
-                <strong>Developmental Concern:</strong> Compounds that inhibit MCT8 may interfere with thyroid hormone transport during pregnancy, potentially leading to impaired fetal brain development, cognitive deficits, and motor skill impairment.
-            </div>
-            <p><strong>VHP4Safety:</strong> This tool is part of the Virtual Human Platform for Safety initiative to identify MCT8 inhibitors and assess developmental risk early in chemical design.</p>
-
-            <!-- Troubleshooting -->
-            <h3 id="troubleshoot" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">Troubleshooting</h3>
-            <h4>Invalid SMILES Error</h4>
-            <p><strong>Solutions:</strong> Verify SMILES syntax using online validators | Remove special characters | Use canonical SMILES</p>
-            <h4>Docking Takes Too Long</h4>
-            <p><strong>Solutions:</strong> Reduce number of poses (try 3) | Lower exhaustiveness (try 8) | Avoid very large molecules (&gt;80 heavy atoms) | Disable CNN scoring</p>
-            <h4>3D Viewer Not Loading</h4>
-            <p><strong>Solutions:</strong> Ensure WebGL is enabled in browser | Try Chrome/Firefox/Edge | Clear browser cache | Check browser console (F12) for errors</p>
-            <h4>Multi-Pose Shows Fewer Than 5 Poses</h4>
-            <p><strong>Expected behavior</strong> if you set "Number of Poses" &lt; 5, or clicked a later pose in the table (e.g., pose 48 of 50 only has 2 remaining).</p>
-
-            <!-- About -->
-            <h3 id="about" style="color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 5px; margin-top: 40px;">About</h3>
-            <p>The MCT8 Binding Affinity Prediction tool is part of the <strong>Virtual Human Platform for Safety (VHP4Safety)</strong> initiative, developing computational models to predict chemical toxicity and reduce animal testing.</p>
-            <h4>Technology Stack</h4>
-            <p><strong>Backend:</strong> Python 3.10+, Flask, RDKit | <strong>Docking Engine:</strong> Gnina v1.3 | <strong>Frontend:</strong> HTML5, JavaScript, 3Dmol.js | <strong>Deployment:</strong> Docker (CPU-only)</p>
-            <h4>Citation</h4>
-            <p><strong>Gnina:</strong> Ragoza M, et al. Protein-Ligand Scoring with Convolutional Neural Networks. <em>J Chem Inf Model.</em> 2017;57(4):942-957.</p>
-            <h4>Contact</h4>
-            <p><strong>Website:</strong> <a href="https://www.vhp4safety.nl/" target="_blank">www.vhp4safety.nl</a> | <strong>GitHub:</strong> <a href="https://github.com/VHP4Safety" target="_blank">github.com/VHP4Safety</a></p>
-            <div style="background-color: #fffacd; padding: 10px; margin: 15px 0; border-radius: 4px;">
-                <strong>Disclaimer:</strong> This tool provides computational predictions for research purposes. Results should be validated experimentally before making regulatory or clinical decisions.
-            </div>
-        </div>
-    </div>
 </body>
 </html>

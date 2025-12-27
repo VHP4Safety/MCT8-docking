@@ -400,3 +400,541 @@ footer a:hover {
         gap: 10px;
     }
 }
+
+/* ========================================
+   3D Viewer Modal Styles
+   ======================================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: var(--container-bg);
+    margin: 2% auto;
+    padding: 0;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 1200px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    background-color: var(--header-bg);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2em;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+.info-box {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--header-bg);
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-row .label {
+    font-weight: bold;
+    color: var(--text-color);
+    min-width: 120px;
+}
+
+.info-row .value {
+    color: #555;
+    word-break: break-all;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+#viewer-container {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background-color: white;
+    margin-bottom: 20px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.controls-panel {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+.control-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.control-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.9em;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    padding: 20px 30px;
+    border-radius: 0 0 10px 10px;
+    text-align: right;
+}
+
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clickable-row:hover {
+    background-color: #ffe6f4 !important;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+
+    .modal-body {
+        padding: 20px 15px;
+    }
+
+    #viewer-container {
+        height: 400px;
+    }
+
+    .controls-panel {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .info-row .label {
+        min-width: auto;
+        margin-bottom: 4px;
+    }
+}
+
+.viewer-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: var(--header-bg);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   Tab Navigation System
+   ======================================== */
+
+.tab-navigation {
+    max-width: 1200px;
+    margin: 0 auto 0 auto;
+    display: flex;
+    gap: 0;
+    background-color: white;
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tab-button {
+    flex: 1;
+    padding: 18px 30px;
+    background-color: white;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.tab-button:hover {
+    background-color: var(--tile-bg);
+    color: var(--header-bg);
+}
+
+.tab-button.active {
+    background-color: var(--header-bg);
+    color: white;
+    border-bottom-color: var(--button-primary);
+    box-shadow: inset 0 -3px 0 var(--button-primary);
+}
+
+.tab-button:focus {
+    outline: 2px solid var(--button-primary);
+    outline-offset: -2px;
+}
+
+/* Tab Content Wrapper */
+.tab-content-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Tab Panels */
+.tab-panel {
+    display: none;
+    opacity: 0;
+    min-height: 400px;
+}
+
+.tab-panel.active {
+    display: block;
+    opacity: 1;
+}
+
+.tab-panel.fade-in {
+    animation: fadeInPanel 0.3s ease-in-out;
+}
+
+@keyframes fadeInPanel {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   Documentation Tab Layout
+   ======================================== */
+
+.documentation-container {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 0;
+    min-height: 600px;
+}
+
+/* Documentation Sidebar */
+.doc-sidebar {
+    background-color: #f8f9fa;
+    padding: 30px 20px;
+    border-right: 2px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+}
+
+.doc-sidebar h3 {
+    color: var(--header-bg);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--header-bg);
+}
+
+.doc-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.doc-nav li {
+    margin-bottom: 8px;
+}
+
+.doc-nav a {
+    display: block;
+    padding: 8px 12px;
+    color: var(--text-color);
+    text-decoration: none;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+    font-size: 0.95em;
+    border-left: 3px solid transparent;
+}
+
+.doc-nav a:hover {
+    background-color: var(--tile-hover);
+    color: var(--button-primary);
+    border-left-color: var(--button-primary);
+    padding-left: 16px;
+}
+
+.doc-nav a:active,
+.doc-nav a:focus {
+    background-color: var(--tile-hover);
+    outline: 2px solid var(--button-primary);
+    outline-offset: -2px;
+}
+
+/* Documentation Content Area */
+.doc-content {
+    padding: 30px 40px;
+    max-width: 800px;
+    overflow-y: auto;
+}
+
+.doc-content h2 {
+    color: var(--text-color);
+    margin-top: 0;
+    font-size: 2em;
+    border-bottom: 3px solid var(--header-bg);
+    padding-bottom: 10px;
+}
+
+.doc-content h3 {
+    color: var(--button-primary);
+    border-bottom: 2px solid var(--button-primary);
+    padding-bottom: 5px;
+    margin-top: 40px;
+    margin-bottom: 15px;
+}
+
+.doc-content h4 {
+    color: var(--text-color);
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+
+.doc-content p {
+    line-height: 1.8;
+    margin-bottom: 15px;
+}
+
+.doc-content ul,
+.doc-content ol {
+    line-height: 1.8;
+    margin-bottom: 15px;
+    padding-left: 25px;
+}
+
+.doc-content li {
+    margin-bottom: 8px;
+}
+
+.doc-content code {
+    background-color: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.doc-content pre {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    border-left: 4px solid var(--header-bg);
+}
+
+.doc-content pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+/* Documentation Info Boxes */
+.doc-content .info-box {
+    background-color: #e3f2fd;
+    padding: 15px;
+    border-left: 4px solid var(--header-bg);
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+.doc-content .warning-box {
+    background-color: #fffacd;
+    padding: 15px;
+    border-left: 4px solid #ffa500;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+/* ========================================
+   Responsive Design for Tabs
+   ======================================== */
+
+@media (max-width: 1024px) {
+    .documentation-container {
+        grid-template-columns: 200px 1fr;
+    }
+
+    .doc-sidebar {
+        padding: 20px 15px;
+    }
+
+    .doc-content {
+        padding: 25px 30px;
+    }
+}
+
+@media (max-width: 768px) {
+    .tab-button {
+        padding: 14px 20px;
+        font-size: 1em;
+    }
+
+    .documentation-container {
+        grid-template-columns: 1fr;
+    }
+
+    .doc-sidebar {
+        position: static;
+        max-height: none;
+        border-right: none;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .doc-content {
+        padding: 20px;
+    }
+
+    /* Make sidebar collapsible on mobile */
+    .doc-sidebar {
+        max-height: 60px;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    .doc-sidebar.expanded {
+        max-height: 800px;
+    }
+
+    .doc-sidebar h3 {
+        cursor: pointer;
+        position: relative;
+    }
+
+    .doc-sidebar h3::after {
+        content: '▼';
+        position: absolute;
+        right: 10px;
+        transition: transform 0.3s ease;
+    }
+
+    .doc-sidebar.expanded h3::after {
+        transform: rotate(180deg);
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-button {
+        padding: 12px 15px;
+        font-size: 0.95em;
+        gap: 4px;
+    }
+
+    .tab-navigation {
+        border-radius: 5px 5px 0 0;
+    }
+
+    .tab-content-wrapper {
+        border-radius: 0 0 5px 5px;
+    }
+}
