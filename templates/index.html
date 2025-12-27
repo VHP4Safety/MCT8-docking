@@ -42,7 +42,7 @@
                 aria-selected="true"
                 aria-controls="docking-panel"
                 onclick="switchTab('docking')">
-            🧬 Docking
+            Docking
         </button>
         <button class="tab-button"
                 id="tab-documentation"
@@ -51,7 +51,7 @@
                 aria-selected="false"
                 aria-controls="documentation-panel"
                 onclick="switchTab('documentation')">
-            📚 Documentation
+            Documentation
         </button>
     </nav>
 
@@ -276,7 +276,6 @@
                             <li><a href="#results" class="doc-link">Results Interpretation</a></li>
                             <li><a href="#viewer-3d" class="doc-link">3D Viewer Help</a></li>
                             <li><a href="#api" class="doc-link">API Documentation</a></li>
-                            <li><a href="#biology" class="doc-link">MCT8 Biology</a></li>
                             <li><a href="#troubleshoot" class="doc-link">Troubleshooting</a></li>
                             <li><a href="#about" class="doc-link">About</a></li>
                         </ul>
@@ -300,7 +299,7 @@
                         <li><strong>Review results</strong>: Check the binding affinity score and assessment</li>
                         <li><strong>Visualize in 3D</strong>: Click any result row to see the binding pose</li>
                     </ol>
-                    <p><strong>Quick Tips:</strong> 💡 Lower (more negative) binding affinity = stronger binding | 🔬 Scores below -9.0 kcal/mol indicate likely MCT8 inhibition | 🎨 Use multi-pose view to compare top 5 binding modes</p>
+                    <p><strong>Quick Tips:</strong> Lower (more negative) binding affinity = stronger binding | Scores below -9.0 kcal/mol indicate likely MCT8 inhibition | Use multi-pose view to compare top 5 binding modes</p>
 
                     <!-- Input Guide -->
                     <h3 id="input-guide">Input Guide</h3>
@@ -385,17 +384,6 @@
                     <h4>Additional Endpoints</h4>
                     <p><code>GET /api/receptor</code> - MCT8 protein structure | <code>GET /api/binding_site</code> - Binding site coordinates | <code>GET /api/pose/{pose_id}</code> - Individual pose data</p>
 
-                    <!-- MCT8 Biology -->
-                    <h3 id="biology">MCT8 Biology & Importance</h3>
-                    <h4>What is MCT8?</h4>
-                    <p>MCT8 (Monocarboxylate Transporter 8, also known as SLC16A2) is a thyroid hormone transporter essential for delivering T3 and T4 hormones across cell membranes, particularly in the developing brain.</p>
-                    <h4>Why is MCT8 Important?</h4>
-                    <p>During the first trimester of pregnancy, MCT8 facilitates thyroid hormone uptake into developing neurons, which is critical for proper brain development. Mutations in MCT8 cause Allan-Herndon-Dudley syndrome, a severe neurodevelopmental disorder.</p>
-                    <h4>Inhibition Risks</h4>
-                    <p>Chemicals that inhibit MCT8 can disrupt thyroid hormone availability in the developing brain, potentially leading to developmental delays, cognitive impairment, and other adverse neurodevelopmental outcomes. Identifying MCT8 inhibitors early in chemical design helps prevent developmental toxicity.</p>
-                    <h4>VHP4Safety Context</h4>
-                    <p>This tool is part of the Virtual Human Platform for Safety (VHP4Safety) thyroid case study, which aims to develop in silico methods for predicting chemical disruption of thyroid hormone pathways.</p>
-
                     <!-- Troubleshooting -->
                     <h3 id="troubleshoot">Troubleshooting</h3>
                     <h4>Invalid SMILES Error</h4>
@@ -418,7 +406,7 @@
                     <h4>Technology Stack</h4>
                     <p><strong>Backend:</strong> Python 3.10+, Flask, RDKit | <strong>Docking Engine:</strong> Gnina v1.3 | <strong>Frontend:</strong> HTML5, JavaScript, 3Dmol.js | <strong>Deployment:</strong> Docker (CPU-only)</p>
                     <h4>Citation</h4>
-                    <p><strong>Gnina:</strong> Ragoza M, et al. Protein-Ligand Scoring with Convolutional Neural Networks. <em>J Chem Inf Model.</em> 2017;57(4):942-957.</p>
+                    <p>[TO-DO]</p>
                     <h4>Contact</h4>
                     <p><strong>Website:</strong> <a href="https://www.vhp4safety.nl/" target="_blank">www.vhp4safety.nl</a> | <strong>GitHub:</strong> <a href="https://github.com/VHP4Safety" target="_blank">github.com/VHP4Safety</a></p>
                     <div class="warning-box">
@@ -549,7 +537,9 @@
             if (!viewer || !pdbData) return;
 
             viewer.addModel(pdbData, 'pdb');
-            viewer.setStyle({resn: 'LIG'}, {
+            const modelIndex = viewer.getModel().length - 1;  // Get index of just-added model
+
+            viewer.setStyle({model: modelIndex, resn: 'LIG'}, {
                 stick: {
                     radius: 0.25,
                     colorscheme: colorScheme
@@ -644,7 +634,7 @@
                 let html = `
                     <div style="background-color: #ffe6f4; border-left: 4px solid #E6007E; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
                         <h4 style="margin: 0 0 5px 0; color: #E6007E;">
-                            🔄 Multi-Pose View Active
+                            Multi-Pose View Active
                         </h4>
                         <p style="margin: 0; font-size: 0.9em;">
                             Displaying ${loadedPoses.length} binding pose${loadedPoses.length > 1 ? 's' : ''} with different colors
@@ -745,6 +735,30 @@
 
                     renderLigand(currentPoseData.pdb, 'magentaCarbon');
                     viewer.zoomTo({resn: 'LIG'}, 1000);
+
+                    // Restore single-pose info panel structure if needed
+                    const infoBox = document.getElementById('pose-info');
+                    if (infoBox && !infoBox.querySelector('#info-smiles')) {
+                        infoBox.innerHTML = `
+                            <div class="info-row">
+                                <span class="label">SMILES:</span>
+                                <span id="info-smiles" class="value"></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Affinity:</span>
+                                <span id="info-affinity" class="value"></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">CNN Score:</span>
+                                <span id="info-cnn" class="value"></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Assessment:</span>
+                                <span id="info-assessment" class="badge"></span>
+                            </div>
+                        `;
+                    }
+
                     updatePoseInfo(currentPoseData);
                 }
 
