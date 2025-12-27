@@ -360,67 +360,143 @@
         }
 
         async function loadMultiplePoses(basePoseId) {
-            if (!viewer) return;
+            if (!viewer) {
+                console.error('Viewer not initialized');
+                return;
+            }
 
-            // Clear existing ligands (keep receptor and binding site)
-            while (viewer.getModel(2)) {
-                viewer.removeModel(2);
+            // Show loading state
+            console.log(`Loading multi-pose view starting from pose ${basePoseId}...`);
+
+            // Clear existing ligands (keep receptor model 0 and binding site model 1)
+            let modelCount = viewer.getModel().length;
+            while (modelCount > 2) {
+                viewer.removeModel(2); // Always remove the third model (index 2)
+                modelCount = viewer.getModel().length;
             }
 
             loadedPoses = [];
             const promises = [];
 
+            // Fetch up to MAX_MULTI_POSES poses
             for (let i = 0; i < MAX_MULTI_POSES; i++) {
+                const poseId = basePoseId + i;
                 promises.push(
-                    fetch(`/api/pose/${basePoseId + i}`)
-                        .then(resp => resp.ok ? resp.json() : null)
-                        .catch(() => null)
+                    fetch(`/api/pose/${poseId}`)
+                        .then(resp => {
+                            if (resp.ok) {
+                                return resp.json();
+                            } else if (resp.status === 404 || resp.status === 400) {
+                                // Pose doesn't exist (end of available poses)
+                                console.log(`Pose ${poseId} not available (expected if fewer poses generated)`);
+                                return null;
+                            } else {
+                                throw new Error(`HTTP ${resp.status} for pose ${poseId}`);
+                            }
+                        })
+                        .catch(err => {
+                            console.warn(`Failed to load pose ${poseId}:`, err.message);
+                            return null;
+                        })
                 );
             }
 
+            // Wait for all fetches to complete
             const results = await Promise.all(promises);
 
+            // Render successfully loaded poses
+            let successCount = 0;
             results.forEach((poseData, index) => {
-                if (poseData) {
+                if (poseData && poseData.pdb) {
                     renderLigand(poseData.pdb, POSE_COLORS[index]);
                     loadedPoses.push({
                         id: basePoseId + index,
                         data: poseData,
                         color: POSE_COLORS[index]
                     });
+                    successCount++;
                 }
             });
 
-            if (loadedPoses.length > 0) {
-                viewer.zoomTo({resn: 'LIG'}, 1000);
-                updateMultiPoseInfo();
+            // Handle edge case: no poses loaded
+            if (loadedPoses.length === 0) {
+                console.error('No poses could be loaded for multi-pose view');
+                alert('Error: No poses available to display. Please try a different pose or run docking again.');
+                multiPoseMode = false;
+                document.getElementById('toggle-multipose').checked = false;
+                return;
             }
 
+            // Update info panel with loaded poses
+            updateMultiPoseInfo();
+
+            // Zoom to show all loaded ligands
+            viewer.zoomTo({resn: 'LIG'}, 1000);
             viewer.render();
+
+            // User feedback
+            console.log(`✓ Multi-pose view: Successfully loaded ${successCount} of ${MAX_MULTI_POSES} requested poses`);
         }
 
         function updateMultiPoseInfo() {
             const infoBox = document.getElementById('pose-info');
 
             if (multiPoseMode && loadedPoses.length > 1) {
-                let html = '<h4>Multiple Poses Loaded</h4>';
+                // Multi-pose mode: Show all loaded poses with color-coding
+                let html = `
+                    <div style="background-color: #ffe6f4; border-left: 4px solid #E6007E; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+                        <h4 style="margin: 0 0 5px 0; color: #E6007E;">
+                            🔄 Multi-Pose View Active
+                        </h4>
+                        <p style="margin: 0; font-size: 0.9em;">
+                            Displaying ${loadedPoses.length} binding pose${loadedPoses.length > 1 ? 's' : ''} with different colors
+                        </p>
+                    </div>
+                `;
+
                 loadedPoses.forEach((pose, idx) => {
                     const assessment = pose.data.assessment || {};
+                    const colorHex = getColorHex(POSE_COLORS[idx]);
+                    const colorName = POSE_COLORS[idx].replace('Carbon', '');
+
                     html += `
-                        <div class="info-row">
-                            <span class="label" style="color: ${getColorHex(POSE_COLORS[idx])}">Pose ${pose.id}:</span>
-                            <span class="value">
-                                ${pose.data.affinity ? pose.data.affinity.toFixed(2) + ' kcal/mol' : 'N/A'}
-                                <span class="badge" style="background-color: ${assessment.color || '#999'}; color: white; margin-left: 8px;">
-                                    ${assessment.category || 'Unknown'}
+                        <div class="info-row" style="
+                            border-left: 4px solid ${colorHex};
+                            padding-left: 12px;
+                            margin-bottom: 10px;
+                            background-color: ${colorHex}15;
+                            border-radius: 4px;
+                            padding: 8px 8px 8px 12px;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="label" style="color: ${colorHex}; font-weight: bold; font-size: 0.95em;">
+                                    ● Pose ${pose.id} (${colorName})
                                 </span>
-                            </span>
+                                <span class="value" style="text-align: right;">
+                                    <strong>${pose.data.affinity ? pose.data.affinity.toFixed(2) : 'N/A'}</strong> kcal/mol
+                                    <span class="badge" style="
+                                        background-color: ${assessment.color || '#999'};
+                                        color: white;
+                                        margin-left: 8px;
+                                        font-size: 0.8em;
+                                        padding: 3px 8px;
+                                    ">
+                                        ${assessment.category || 'Unknown'}
+                                    </span>
+                                </span>
+                            </div>
                         </div>
                     `;
                 });
+
                 infoBox.innerHTML = html;
+
             } else if (loadedPoses.length === 1) {
+                // Single pose mode: Use standard info display
                 updatePoseInfo(loadedPoses[0].data);
+            } else {
+                // No poses loaded
+                infoBox.innerHTML = '<p style="color: #999;">No pose data available</p>';
             }
         }
 
@@ -548,13 +624,33 @@
         }
 
         function toggleMultiPose() {
-            if (!viewer) return;
+            if (!viewer) {
+                console.warn('Viewer not initialized - cannot toggle multi-pose mode');
+                return;
+            }
 
+            const wasMultiPose = multiPoseMode;
             multiPoseMode = document.getElementById('toggle-multipose').checked;
 
+            // Update visual indicator
+            const indicator = document.getElementById('multipose-indicator');
+            if (indicator) {
+                indicator.style.display = multiPoseMode ? 'inline' : 'none';
+            }
+
+            // Reload current view in new mode
             if (loadedPoses.length > 0) {
                 const basePoseId = loadedPoses[0].id;
-                showPose(basePoseId);
+                console.log(`Switching to ${multiPoseMode ? 'multi-pose' : 'single-pose'} mode...`);
+                showPose(basePoseId); // This will reload viewer with new mode
+            } else {
+                console.warn('No poses loaded to toggle. Please click a result row first.');
+                // Revert checkbox if no poses available
+                document.getElementById('toggle-multipose').checked = wasMultiPose;
+                multiPoseMode = wasMultiPose;
+                if (indicator) {
+                    indicator.style.display = wasMultiPose ? 'inline' : 'none';
+                }
             }
         }
 
@@ -624,9 +720,16 @@
 
                 <!-- Controls Panel -->
                 <div class="controls-panel">
-                    <label class="control-label">
+                    <label class="control-label" style="position: relative;">
                         <input type="checkbox" id="toggle-multipose" onchange="toggleMultiPose()">
                         <span>Multi-Pose View (Top 5)</span>
+                        <span id="multipose-indicator" style="
+                            display: none;
+                            margin-left: 8px;
+                            color: #E6007E;
+                            font-size: 1.2em;
+                            vertical-align: middle;
+                        " title="Multi-pose mode active">●</span>
                     </label>
                     <label class="control-label">
                         <input type="checkbox" id="toggle-cartoon" checked onchange="toggleCartoon()">
