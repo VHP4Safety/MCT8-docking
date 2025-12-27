@@ -536,10 +536,10 @@
         function renderLigand(pdbData, colorScheme = 'magentaCarbon') {
             if (!viewer || !pdbData) return;
 
-            viewer.addModel(pdbData, 'pdb');
-            const modelIndex = viewer.getModel().length - 1;  // Get index of just-added model
+            let m = viewer.addModel(pdbData, 'pdb');
+            let modelId = m.getID();
 
-            viewer.setStyle({model: modelIndex, resn: 'LIG'}, {
+            viewer.setStyle({model: modelId, resn: 'LIG'}, {
                 stick: {
                     radius: 0.25,
                     colorscheme: colorScheme
@@ -556,11 +556,14 @@
             // Show loading state
             console.log(`Loading multi-pose view starting from pose ${basePoseId}...`);
 
-            // Clear existing ligands (keep receptor model 0 and binding site model 1)
-            let modelCount = viewer.getModel().length;
-            while (modelCount > 2) {
-                viewer.removeModel(2); // Always remove the third model (index 2)
-                modelCount = viewer.getModel().length;
+            // Clear all models and re-add receptor and binding site
+            viewer.removeAllModels();
+            renderReceptor();
+
+            // Only render binding site if checkbox is checked
+            const siteChecked = document.getElementById('toggle-site').checked;
+            if (siteChecked) {
+                renderBindingSite();
             }
 
             loadedPoses = [];
@@ -630,35 +633,33 @@
             const infoBox = document.getElementById('pose-info');
 
             if (multiPoseMode && loadedPoses.length > 1) {
-                // Multi-pose mode: Show all loaded poses with color-coding
+                // Multi-pose mode: Show all loaded poses
                 let html = `
-                    <div style="background-color: #ffe6f4; border-left: 4px solid #E6007E; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
-                        <h4 style="margin: 0 0 5px 0; color: #E6007E;">
+                    <div style="padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ddd; background-color: #f8f9fa;">
+                        <h4 style="margin: 0 0 5px 0;">
                             Multi-Pose View Active
                         </h4>
                         <p style="margin: 0; font-size: 0.9em;">
-                            Displaying ${loadedPoses.length} binding pose${loadedPoses.length > 1 ? 's' : ''} with different colors
+                            Displaying ${loadedPoses.length} binding pose${loadedPoses.length > 1 ? 's' : ''} in different colors
                         </p>
                     </div>
                 `;
 
                 loadedPoses.forEach((pose, idx) => {
                     const assessment = pose.data.assessment || {};
-                    const colorHex = getColorHex(POSE_COLORS[idx]);
                     const colorName = POSE_COLORS[idx].replace('Carbon', '');
 
                     html += `
                         <div class="info-row" style="
-                            border-left: 4px solid ${colorHex};
                             padding-left: 12px;
                             margin-bottom: 10px;
-                            background-color: ${colorHex}15;
                             border-radius: 4px;
                             padding: 8px 8px 8px 12px;
+                            border: 1px solid #ddd;
                         ">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span class="label" style="color: ${colorHex}; font-weight: bold; font-size: 0.95em;">
-                                    ● Pose ${pose.id} (${colorName})
+                                <span class="label" style="font-weight: bold; font-size: 0.95em;">
+                                    Pose ${pose.id} (${colorName})
                                 </span>
                                 <span class="value" style="text-align: right;">
                                     <strong>${pose.data.affinity ? pose.data.affinity.toFixed(2) : 'N/A'}</strong> kcal/mol
@@ -720,7 +721,12 @@
 
                 initViewer();
                 renderReceptor();
-                renderBindingSite();
+
+                // Only render binding site if checkbox is checked
+                const siteChecked = document.getElementById('toggle-site').checked;
+                if (siteChecked) {
+                    renderBindingSite();
+                }
 
                 if (multiPoseMode) {
                     await loadMultiplePoses(poseId);
