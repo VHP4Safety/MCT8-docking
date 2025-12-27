@@ -342,7 +342,7 @@
             if (!viewer || !receptorPDB) return;
 
             viewer.addModel(receptorPDB, 'pdb');
-            viewer.setStyle({}, {
+            viewer.setStyle({model: 0}, {
                 cartoon: {
                     color: '#F5F5DC',
                     thickness: 0.5,
@@ -695,6 +695,7 @@
             }
 
             currentPoseData = null;
+            loadedPoses = [];
         }
 
         window.onclick = function(event) {
