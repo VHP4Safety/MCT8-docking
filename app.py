@@ -6,11 +6,13 @@ Web interface for molecular docking simulations.
 import os
 import io
 import logging
-from flask import Flask, render_template, request, jsonify, send_file, flash
+from pathlib import Path
+from flask import Flask, render_template, request, jsonify, send_file, flash, redirect
 from flask_cors import CORS
 
 import pandas as pd
 from werkzeug.utils import secure_filename
+from rdkit import Chem
 
 import docking
 
@@ -301,6 +303,123 @@ def api_dock():
     except Exception as e:
         logger.error(f"API error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/receptor')
+def api_receptor():
+    """Get MCT8 receptor PDB file."""
+    try:
+        receptor_path = Path("data/mct8_receptor.pdb")
+        if not receptor_path.exists():
+            return jsonify({'error': 'Receptor PDB not found'}), 404
+
+        with open(receptor_path, 'r') as f:
+            pdb_data = f.read()
+
+        atom_count = len([line for line in pdb_data.split('\n') if line.startswith('ATOM')])
+
+        return jsonify({
+            'pdb': pdb_data,
+            'atoms': atom_count,
+            'name': 'MCT8 Receptor'
+        })
+    except Exception as e:
+        logger.error(f"Error loading receptor: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/binding_site')
+def api_binding_site():
+    """Get binding site PDB file."""
+    try:
+        site_path = Path("data/binding_site.pdb")
+        if not site_path.exists():
+            return jsonify({'error': 'Binding site PDB not found'}), 404
+
+        with open(site_path, 'r') as f:
+            pdb_data = f.read()
+
+        atom_count = len([line for line in pdb_data.split('\n') if line.startswith('HETATM')])
+
+        return jsonify({
+            'pdb': pdb_data,
+            'atoms': atom_count,
+            'name': 'Binding Site'
+        })
+    except Exception as e:
+        logger.error(f"Error loading binding site: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/pose/<int:pose_id>')
+def api_pose(pose_id):
+    """Get PDB data for a specific docked pose."""
+    try:
+        output_file = "output.sdf"
+        if not Path(output_file).exists():
+            return jsonify({'error': 'No docking results found. Run docking first.'}), 404
+
+        # Read SDF file
+        supplier = Chem.SDMolSupplier(output_file, removeHs=False)
+        poses = list(supplier)
+
+        # Validate pose_id
+        if pose_id < 0 or pose_id >= len(poses):
+            return jsonify({'error': f'Invalid pose_id. Must be 0-{len(poses)-1}'}), 400
+
+        pose = poses[pose_id]
+        if pose is None:
+            return jsonify({'error': f'Pose {pose_id} could not be loaded'}), 500
+
+        # Convert to PDB format
+        pdb_block = Chem.MolToPDBBlock(pose)
+        pdb_block = pdb_block.replace("UNL", "LIG")  # Replace generic residue name
+
+        # Get properties
+        props = pose.GetPropsAsDict()
+        affinity = props.get('minimizedAffinity', None)
+        cnn_score = props.get('CNNscore', None)
+
+        # Generate response
+        result = {
+            'pdb': pdb_block,
+            'smiles': Chem.MolToSmiles(pose),
+            'inchikey': Chem.inchi.MolToInchiKey(pose),
+            'affinity': affinity,
+            'cnn_score': cnn_score,
+            'pose_id': pose_id
+        }
+
+        # Add assessment
+        if affinity is not None:
+            result['assessment'] = docking.assess_inhibition(affinity)
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error loading pose {pose_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/download/sdf')
+def download_sdf():
+    """Download complete output.sdf file with all docked poses."""
+    try:
+        output_file = Path("output.sdf")
+        if not output_file.exists():
+            flash('No docking results found. Please run docking first.', 'error')
+            return redirect('/')
+
+        return send_file(
+            output_file,
+            mimetype='chemical/x-mdl-sdfile',
+            as_attachment=True,
+            download_name='mct8_docking_results.sdf'
+        )
+    except Exception as e:
+        logger.error(f"Error downloading SDF: {e}")
+        flash(f'Error downloading SDF file: {str(e)}', 'error')
+        return redirect('/')
 
 
 def generate_pdf_report(df, params):
