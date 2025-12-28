@@ -15,7 +15,9 @@ Inhibition of MCT8 can disrupt thyroid hormone availability in the developing br
 - **Automated Ligand Preparation**: Hydrogen addition, 3D structure generation, and geometry optimization
 - **Neural Network Scoring**: Gnina's CNN-enhanced scoring for improved accuracy
 - **Interactive Results**: DataTables with sorting, filtering, and export (CSV, Excel, PDF)
-- **Risk Assessment**: Automatic categorization of compounds as strong/moderate/weak inhibitors
+- **3D Molecular Viewer**: Interactive 3D visualization with multi-pose comparison (top 5 poses)
+- **Loading Progress Indicator**: Real-time feedback with estimated completion time during docking
+- **Risk Assessment**: Automatic categorization of compounds as Likely/Possible/Unlikely inhibitors
 - **RESTful API**: Programmatic access for batch processing
 - **PDF Reports**: Generate publication-ready docking reports
 
