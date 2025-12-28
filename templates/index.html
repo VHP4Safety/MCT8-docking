@@ -565,7 +565,7 @@
             }
 
             // Show loading state
-            console.log(`Loading multi-pose view starting from pose ${basePoseId}...`);
+            console.log(`Loading multi-pose view (top ${MAX_MULTI_POSES} poses starting from pose ${basePoseId})...`);
 
             // Clear all models and re-add receptor and binding site
             viewer.removeAllModels();
@@ -866,7 +866,9 @@
 
             // Reload current view in new mode
             if (loadedPoses.length > 0) {
-                const basePoseId = loadedPoses[0].id;
+                // For multi-pose, always show top 5 best poses (starting from pose 0)
+                // For single-pose, show the currently selected pose
+                const basePoseId = multiPoseMode ? 0 : loadedPoses[0].id;
                 console.log(`Switching to ${multiPoseMode ? 'multi-pose' : 'single-pose'} mode...`);
                 showPose(basePoseId); // This will reload viewer with new mode
             } else {
