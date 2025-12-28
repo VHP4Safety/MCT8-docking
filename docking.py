@@ -399,19 +399,19 @@ def assess_inhibition(affinity):
 
     if affinity < -9.0:
         return {
-            'category': 'Strong Inhibitor',
+            'category': 'Likely Inhibitor',
             'color': '#E6007E',  # Magenta
             'description': 'High inhibition risk (< -9.0 kcal/mol)'
         }
     elif affinity < -8.0:
         return {
-            'category': 'Moderate Inhibitor',
+            'category': 'Possible Inhibitor',
             'color': '#FF9500',  # Orange
             'description': 'Moderate inhibition risk (-8.0 to -9.0 kcal/mol)'
         }
     else:
         return {
-            'category': 'Weak/Non-Inhibitor',
+            'category': 'Unlikely Inhibitor',
             'color': '#4CAF50',  # Green
             'description': 'Low inhibition risk (> -8.0 kcal/mol)'
         }
