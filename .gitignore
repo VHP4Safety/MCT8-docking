@@ -52,6 +52,7 @@ Desktop.ini
 results/
 temp/
 *.log
+*.pid
 binaries/
 *.pdb
 *.sdf
