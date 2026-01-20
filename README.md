@@ -102,6 +102,18 @@ python app.py
    - **Possible Inhibitor**: Binding affinity -8.0 to -9.0 kcal/mol (Moderate risk)
    - **Unlikely Inhibitor**: Binding affinity > -8.0 kcal/mol (Low risk)
 
+5. **View in 3D Molecular Viewer**:
+   - Click any result row in the table to open the interactive 3D viewer
+   - **Mouse Controls**:
+     - Left-click + drag: Rotate the view
+     - Scroll wheel: Zoom in/out
+     - Right-click + drag: Pan the view
+   - **Multi-Pose Comparison**: Enable "Show Top 5 Poses" checkbox to overlay the top 5 binding poses in different colors (magenta, cyan, yellow, green, orange)
+   - **Toggle Options**:
+     - Show/hide protein cartoon backbone
+     - Show/hide binding site residues (orange sticks)
+   - **Info Panel**: Displays SMILES, binding affinity, CNN score, and risk assessment for the selected pose
+
 ### REST API
 
 #### Endpoint: `POST /api`
@@ -159,6 +171,77 @@ curl -X POST http://localhost:5000/api \
 - `"format": "csv"` - CSV file
 - `"format": "sdf"` - SDF file with 3D structures
 
+### Additional API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/receptor` | GET | Returns MCT8 receptor PDB data |
+| `/api/binding_site` | GET | Returns binding site PDB data |
+| `/api/pose/<id>` | GET | Returns specific docked pose with assessment |
+| `/download/sdf` | GET | Downloads complete docking results as SDF file |
+
+#### GET `/api/receptor`
+
+Returns the MCT8 receptor structure in PDB format.
+
+**Response:**
+```json
+{
+  "pdb": "ATOM      1  N   MET A   1...",
+  "atoms": 10234,
+  "name": "MCT8 Receptor"
+}
+```
+
+#### GET `/api/binding_site`
+
+Returns the binding site coordinates in PDB format.
+
+**Response:**
+```json
+{
+  "pdb": "HETATM    1  C   SIT E   1...",
+  "atoms": 23,
+  "name": "Binding Site"
+}
+```
+
+#### GET `/api/pose/<id>`
+
+Returns a specific docked pose by index (0-based).
+
+**Response:**
+```json
+{
+  "pdb": "ATOM      1  C   LIG A   1...",
+  "smiles": "CCO",
+  "inchikey": "LFQSCWFLJHTTHZ-UHFFFAOYSA-N",
+  "affinity": -5.2,
+  "cnn_score": 0.65,
+  "pose_id": 0,
+  "assessment": {
+    "category": "Unlikely Inhibitor",
+    "color": "#4CAF50",
+    "description": "Low inhibition risk (> -8.0 kcal/mol)"
+  }
+}
+```
+
+**cURL Examples:**
+```bash
+# Get receptor PDB
+curl http://localhost:5000/api/receptor
+
+# Get binding site PDB
+curl http://localhost:5000/api/binding_site
+
+# Get pose 0 with assessment
+curl http://localhost:5000/api/pose/0
+
+# Download all results as SDF
+curl -O http://localhost:5000/download/sdf
+```
+
 ## Project Structure
 
 ```
@@ -195,7 +278,7 @@ MCT8-docking/
 3. **Geometry Optimization**: MMFF force field minimization
 4. **Molecular Docking**: Gnina with CNN scoring
 5. **Result Processing**: Boltzmann weighting, affinity assessment
-6. **Visualization**: 2D structure images, 3D pose viewing (future)
+6. **Visualization**: 2D structure images, interactive 3D pose viewing
 
 ### Scoring
 

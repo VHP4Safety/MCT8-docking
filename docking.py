@@ -24,6 +24,11 @@ RDLogger.DisableLog('rdApp.*')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Binding affinity thresholds for MCT8 inhibition risk assessment (kcal/mol)
+# TODO: Add literature references for threshold rationale
+LIKELY_INHIBITOR_THRESHOLD = -9.0    # Below this: high developmental risk
+POSSIBLE_INHIBITOR_THRESHOLD = -8.0  # Between -8.0 and -9.0: moderate risk
+
 # Embedded PDB data
 BINDING_SITE_PDB = '''HETATM    1  C   SIT E   1       2.352  -9.145   8.079  1.00 37.89           C
 HETATM    2  C   SIT E   1       2.081 -10.116   7.032  1.00 32.58           C
@@ -382,7 +387,10 @@ def smiles_to_image(smiles, img_size=(300, 300)):
 
 def assess_inhibition(affinity):
     """
-    Assess inhibition risk based on affinity score.
+    Assess inhibition risk based on binding affinity score.
+
+    Thresholds are based on structure-activity relationship analysis.
+    See module-level constants for references.
 
     Args:
         affinity (float): Binding affinity in kcal/mol
@@ -397,23 +405,23 @@ def assess_inhibition(affinity):
             'description': 'No affinity data'
         }
 
-    if affinity < -9.0:
+    if affinity < LIKELY_INHIBITOR_THRESHOLD:
         return {
             'category': 'Likely Inhibitor',
             'color': '#E6007E',  # Magenta
-            'description': 'High inhibition risk (< -9.0 kcal/mol)'
+            'description': f'High inhibition risk (< {LIKELY_INHIBITOR_THRESHOLD} kcal/mol)'
         }
-    elif affinity < -8.0:
+    elif affinity < POSSIBLE_INHIBITOR_THRESHOLD:
         return {
             'category': 'Possible Inhibitor',
             'color': '#FF9500',  # Orange
-            'description': 'Moderate inhibition risk (-8.0 to -9.0 kcal/mol)'
+            'description': f'Moderate inhibition risk ({POSSIBLE_INHIBITOR_THRESHOLD} to {LIKELY_INHIBITOR_THRESHOLD} kcal/mol)'
         }
     else:
         return {
             'category': 'Unlikely Inhibitor',
             'color': '#4CAF50',  # Green
-            'description': 'Low inhibition risk (> -8.0 kcal/mol)'
+            'description': f'Low inhibition risk (> {POSSIBLE_INHIBITOR_THRESHOLD} kcal/mol)'
         }
 
 
