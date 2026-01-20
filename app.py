@@ -35,6 +35,41 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def validate_docking_params(params):
+    """
+    Validate docking parameters.
+
+    Args:
+        params (dict): Dictionary with num_modes, exhaustiveness, autobox_add, cnn
+
+    Returns:
+        list: List of error messages (empty if valid)
+    """
+    errors = []
+
+    num_modes = params.get('num_modes')
+    if num_modes is not None:
+        if not isinstance(num_modes, int) or not 1 <= num_modes <= 50:
+            errors.append("num_modes must be an integer between 1 and 50")
+
+    exhaustiveness = params.get('exhaustiveness')
+    if exhaustiveness is not None:
+        if not isinstance(exhaustiveness, int) or not 2 <= exhaustiveness <= 128:
+            errors.append("exhaustiveness must be an integer between 2 and 128")
+
+    autobox_add = params.get('autobox_add')
+    if autobox_add is not None:
+        if not isinstance(autobox_add, (int, float)) or not 0 <= autobox_add <= 10:
+            errors.append("autobox_add must be a number between 0 and 10")
+
+    cnn = params.get('cnn')
+    if cnn is not None:
+        if cnn not in ['none', 'fast', 'default']:
+            errors.append("cnn must be 'none', 'fast', or 'default'")
+
+    return errors
+
+
 @app.route('/')
 def home():
     """Render home page with docking form."""
@@ -145,6 +180,11 @@ def dock():
             'cnn': request.form.get('cnn', 'none')  # Default to 'none' (CPU-only)
         }
 
+        # Validate parameters
+        validation_errors = validate_docking_params(params)
+        if validation_errors:
+            return render_template('index.html', error=f"Invalid parameters: {'; '.join(validation_errors)}")
+
         logger.info(f"Running docking with parameters: {params}")
 
         # Run docking
@@ -252,6 +292,11 @@ def api_dock():
             'autobox_add': params.get('autobox_add', 6.0),
             'cnn': params.get('cnn', 'none')  # Default to 'none' (CPU-only, no CUDA required)
         }
+
+        # Validate parameters
+        validation_errors = validate_docking_params(docking_params)
+        if validation_errors:
+            return jsonify({'error': f"Invalid parameters: {'; '.join(validation_errors)}"}), 400
 
         # Run docking
         result = docking.run_docking(
@@ -491,4 +536,5 @@ def generate_pdf_report(df, params):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
