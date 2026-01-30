@@ -54,8 +54,11 @@ temp/
 *.log
 *.pid
 binaries/
-*.pdb
 *.sdf
+
+# PDB files (exclude generated output, but allow data/ receptor files)
+*.pdb
+!data/*.pdb
 MCT8_docking_results.csv
 output.txt
 processed.sdf
