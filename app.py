@@ -354,7 +354,7 @@ def api_dock():
 def api_receptor():
     """Get MCT8 receptor PDB file."""
     try:
-        receptor_path = Path("data/mct8_receptor.pdb")
+        receptor_path = Path("data/mct8_receptor_full.pdb")
         if not receptor_path.exists():
             return jsonify({'error': 'Receptor PDB not found'}), 404
 

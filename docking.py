@@ -102,21 +102,15 @@ def create_pdb_files():
     data_dir.mkdir(exist_ok=True)
 
     site_path = data_dir / "binding_site.pdb"
-    receptor_path = data_dir / "mct8_receptor.pdb"
+    receptor_path = Path(MCT8_RECEPTOR_FILE)
 
     # Write binding site
     with open(site_path, 'w') as f:
         f.write(BINDING_SITE_PDB)
 
-    # Check if full receptor file exists, otherwise create from embedded data
-    if Path(MCT8_RECEPTOR_FILE).exists() and receptor_path != Path(MCT8_RECEPTOR_FILE):
-        # Copy from full file
-        import shutil
-        shutil.copy(MCT8_RECEPTOR_FILE, receptor_path)
-        logger.info("Using full MCT8 receptor PDB")
-    elif not receptor_path.exists():
-        # Create placeholder warning - full PDB should be added
-        logger.error("Full MCT8 receptor PDB not found!")
+    # Check if receptor file exists
+    if not receptor_path.exists():
+        logger.error("MCT8 receptor PDB not found!")
         raise FileNotFoundError(f"MCT8 receptor PDB not found at {MCT8_RECEPTOR_FILE}")
 
     logger.info(f"Created PDB files: {site_path}, {receptor_path}")
