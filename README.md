@@ -1,5 +1,10 @@
 # MCT8 Docking - VHP4Safety
 
+[![CI](https://github.com/VHP4Safety/VU_Google_Colabs/actions/workflows/ci.yml/badge.svg)](https://github.com/VHP4Safety/VU_Google_Colabs/actions/workflows/ci.yml)
+[![Docker Build](https://github.com/VHP4Safety/VU_Google_Colabs/actions/workflows/docker.yml/badge.svg)](https://github.com/VHP4Safety/VU_Google_Colabs/actions/workflows/docker.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+
 Molecular docking web application for predicting binding affinity to Monocarboxylate Transporter 8 (MCT8), part of the Virtual Human Platform for Safety (VHP4Safety) thyroid case study.
 
 ## Overview
