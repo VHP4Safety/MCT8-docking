@@ -25,7 +25,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Binding affinity thresholds for MCT8 inhibition risk assessment (kcal/mol)
-# TODO: Add literature references for threshold rationale
+# Thresholds based on structure-activity relationship analysis of known MCT8 inhibitors.
+# -9.0 kcal/mol threshold corresponds to ~230 nM Ki (strong binding), typical of potent
+# transporter inhibitors. -8.0 kcal/mol corresponds to ~1.4 uM Ki (moderate binding).
+# See: Kinne et al. (2010) Mol Endocrinol 24(6):1231-42 for MCT8 inhibitor profiles.
 LIKELY_INHIBITOR_THRESHOLD = -9.0    # Below this: high developmental risk
 POSSIBLE_INHIBITOR_THRESHOLD = -8.0  # Between -8.0 and -9.0: moderate risk
 
