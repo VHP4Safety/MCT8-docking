@@ -2,6 +2,7 @@
 Tests for Flask application endpoints.
 """
 
+import os
 import pytest
 from app import allowed_file, validate_docking_params
 
@@ -231,8 +232,17 @@ class TestBindingSiteEndpoint:
 class TestDownloadEndpoint:
     """Tests for download endpoint."""
 
-    def test_download_without_results(self, client):
+    def test_download_without_results(self, client, tmp_path):
         """Test download endpoint when no results exist."""
-        response = client.get('/download/sdf')
-        # Should redirect to home if no results
-        assert response.status_code == 302
+        sdf = "output.sdf"
+        backup = None
+        if os.path.exists(sdf):
+            backup = str(tmp_path / "output.sdf.bak")
+            os.rename(sdf, backup)
+        try:
+            response = client.get('/download/sdf')
+            # Should redirect to home if no results
+            assert response.status_code == 302
+        finally:
+            if backup is not None:
+                os.rename(backup, sdf)
