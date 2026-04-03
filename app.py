@@ -70,6 +70,11 @@ def validate_docking_params(params):
     return errors
 
 
+@app.route('/health')
+def health():
+    return 'OK', 200
+
+
 @app.route('/')
 def home():
     """Render home page with docking form."""
