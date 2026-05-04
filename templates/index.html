@@ -502,6 +502,28 @@
 
             container.innerHTML = '';
 
+            // Sanity check: container must have non-zero dimensions before
+            // 3Dmol creates a canvas inside it, otherwise the WebGL context
+            // can come back null on some browsers.
+            if (!container.clientWidth || !container.clientHeight) {
+                showViewerError(container,
+                    '3D viewer container has no size yet. Please reopen the viewer.');
+                throw new Error('viewer-container has zero dimensions');
+            }
+
+            // Pre-flight: confirm the browser can actually create a WebGL
+            // context at all. If this fails, tell the user instead of letting
+            // 3Dmol crash deep inside Renderer.initGL.
+            const probe = document.createElement('canvas');
+            const probeGL = probe.getContext('webgl') || probe.getContext('experimental-webgl');
+            if (!probeGL) {
+                showViewerError(container,
+                    'WebGL is not available in this browser. ' +
+                    'Enable hardware acceleration (chrome://settings/system) ' +
+                    'or try a different browser, then reload the page.');
+                throw new Error('WebGL unavailable');
+            }
+
             const config = {
                 backgroundColor: 'white',
                 antialias: false,        // Disable antialiasing for performance
@@ -515,14 +537,20 @@
                 }
             } catch (err) {
                 viewer = null;
-                container.innerHTML =
-                    '<p style="padding:20px;color:#a00;">' +
-                    '3D viewer could not start (WebGL unavailable). ' +
-                    'Try closing other tabs that use 3D graphics, then refresh this page.' +
-                    '</p>';
+                showViewerError(container,
+                    '3D viewer could not start. ' +
+                    'Try closing other tabs that use 3D graphics, then refresh this page. ' +
+                    '(' + (err && err.message ? err.message : 'unknown error') + ')');
                 throw err;
             }
             return viewer;
+        }
+
+        function showViewerError(container, message) {
+            container.innerHTML =
+                '<p style="padding:20px;color:#a00;font-weight:500;">' +
+                message +
+                '</p>';
         }
 
         async function loadReceptorData() {
@@ -766,6 +794,12 @@
                 modal.style.display = 'block';
                 showLoading();
 
+                // Wait for the browser to lay out and paint the modal so the
+                // viewer-container has real dimensions. WebGL context creation
+                // can fail when the canvas's parent has just transitioned from
+                // display:none and has no computed layout yet.
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
                 await loadReceptorData();
 
                 initViewer();
@@ -822,7 +856,8 @@
             } catch (error) {
                 console.error('Error showing pose:', error);
                 hideLoading();
-                alert(`Error loading 3D structure: ${error.message}`);
+                const msg = (error && (error.message || error.toString())) || 'unknown error';
+                alert(`Error loading 3D structure: ${msg}`);
                 closeViewer();
             }
         }
