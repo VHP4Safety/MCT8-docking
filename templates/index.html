@@ -185,6 +185,9 @@
                     Generate PDF Report
                 </button>
             </div>
+            <p id="etaPreview" style="margin-top:10px;color:#555;font-size:0.9em;">
+                Estimated runtime: ...
+            </p>
         </form>
     </div>
 
@@ -1082,71 +1085,127 @@
             }
         });
 
-        function showDockingLoader(action) {
+        function getFormEtaParams() {
+            const numModesInput = document.querySelector('input[name="num_modes"]');
+            const exhaustivenessInput = document.querySelector('input[name="exhaustiveness"]');
+            const smilesInput = document.querySelector('input[name="smiles"]');
+            const cnnInput = document.querySelector('select[name="cnn"]');
+            const smilesText = smilesInput ? smilesInput.value.trim() : '';
+            return {
+                num_molecules: smilesText
+                    ? smilesText.split(',').filter(s => s.trim()).length
+                    : 1,
+                num_modes: numModesInput ? parseInt(numModesInput.value) || 3 : 3,
+                exhaustiveness: exhaustivenessInput
+                    ? parseInt(exhaustivenessInput.value) || 8
+                    : 8,
+                cnn: cnnInput ? cnnInput.value : 'none',
+            };
+        }
+
+        function formatEta(seconds) {
+            if (!isFinite(seconds) || seconds <= 0) return 'Less than 1 minute';
+            if (seconds < 45) return 'Less than 1 minute';
+            const minutes = seconds / 60;
+            if (minutes < 1.5) return 'About 1 minute';
+            if (minutes < 60) return `About ${Math.round(minutes)} minutes`;
+            const hours = minutes / 60;
+            return `About ${hours.toFixed(1)} hours`;
+        }
+
+        function formatEtaRange(low, high) {
+            const lo = Math.max(15, low) / 60;
+            const hi = Math.max(lo, high / 60);
+            const round = (x) => x < 1 ? '<1' : (x < 10 ? x.toFixed(1) : Math.round(x));
+            if (hi - lo < 0.3) return `~${round((lo + hi) / 2)} minutes`;
+            return `${round(lo)}–${round(hi)} minutes`;
+        }
+
+        async function fetchEta(action) {
+            const p = { ...getFormEtaParams(), action: action || 'dock' };
+            try {
+                const resp = await fetch('/api/estimate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(p),
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                return await resp.json();
+            } catch (err) {
+                // Local fallback so the UI never blocks on network problems.
+                const seconds = localFallbackEta(p);
+                return { seconds, samples: 0, source: 'client-fallback' };
+            }
+        }
+
+        function localFallbackEta(p) {
+            let perMol = 30 + p.num_modes * 6 + Math.max(0, p.exhaustiveness - 8) * 3;
+            if (p.cnn === 'fast') perMol *= 1.5;
+            else if (p.cnn === 'default') perMol *= 3;
+            let total = 30 + 20 * p.num_molecules + perMol * p.num_molecules;
+            if (p.action === 'report') total += 30;
+            return total;
+        }
+
+        async function showDockingLoader(action) {
             const overlay = document.getElementById('dockingLoadingOverlay');
             const title = document.getElementById('loadingTitle');
             const message = document.getElementById('loadingMessage');
             const estimatedTime = document.getElementById('estimatedTime');
 
-            // Get form parameters to estimate time
-            const numModesInput = document.querySelector('input[name="num_modes"]');
-            const exhaustivenessInput = document.querySelector('input[name="exhaustiveness"]');
-            const smilesInput = document.querySelector('input[name="smiles"]');
-
-            const numModes = numModesInput ? parseInt(numModesInput.value) : 3;
-            const exhaustiveness = exhaustivenessInput ? parseInt(exhaustivenessInput.value) : 8;
-            const smilesText = smilesInput ? smilesInput.value.trim() : '';
-            const numMolecules = smilesText ? smilesText.split(',').filter(s => s.trim()).length : 1;
-
-            // Calculate estimated time
-            let estimatedMinutes = calculateEstimatedTime(numMolecules, numModes, exhaustiveness);
-
-            // Update UI based on action
             if (action === 'report') {
                 title.textContent = 'Generating PDF Report';
                 message.textContent = 'Running docking simulation and creating downloadable report...';
-                estimatedMinutes += 0.5; // PDF generation adds time
             } else {
                 title.textContent = 'Processing Docking Request';
                 message.textContent = 'Preparing ligands and running molecular docking simulation...';
             }
 
-            // Display estimated time
-            if (estimatedMinutes < 1) {
-                estimatedTime.textContent = 'Less than 1 minute';
-            } else if (estimatedMinutes < 2) {
-                estimatedTime.textContent = '1-2 minutes';
-            } else if (estimatedMinutes < 4) {
-                estimatedTime.textContent = '2-4 minutes';
-            } else if (estimatedMinutes < 6) {
-                estimatedTime.textContent = '4-6 minutes';
-            } else {
-                estimatedTime.textContent = '6-10 minutes';
-            }
-
-            // Show overlay
+            // Show overlay immediately so the user sees feedback even before
+            // the estimate arrives.
+            estimatedTime.textContent = 'Estimating...';
             overlay.style.display = 'flex';
 
-            // Note: Not disabling form controls to ensure form data submits properly
-            // The page will reload after submission anyway
+            const eta = await fetchEta(action);
+            if (eta.source === 'history' && eta.seconds_low && eta.seconds_high) {
+                const range = formatEtaRange(eta.seconds_low, eta.seconds_high);
+                estimatedTime.textContent =
+                    `${range} (based on ${eta.samples} past runs)`;
+            } else {
+                estimatedTime.textContent = formatEta(eta.seconds);
+            }
         }
 
-        function calculateEstimatedTime(numMolecules, numModes, exhaustiveness) {
-            // Base time: setup + validation (0.5 min)
-            let minutes = 0.5;
-
-            // Ligand preparation: ~0.3 min per molecule
-            minutes += numMolecules * 0.3;
-
-            // Docking time per molecule (empirical formula)
-            // Base: 1 minute
-            // +0.1 min per mode
-            // +0.05 min per exhaustiveness point above 8
-            const dockingPerMolecule = 1 + (numModes * 0.1) + (Math.max(0, exhaustiveness - 8) * 0.05);
-            minutes += numMolecules * dockingPerMolecule;
-
-            return minutes;
+        // Live ETA preview shown next to the form before submission, so
+        // users see how parameter changes affect runtime.
+        let _etaPreviewTimer = null;
+        function refreshEtaPreview() {
+            const target = document.getElementById('etaPreview');
+            if (!target) return;
+            clearTimeout(_etaPreviewTimer);
+            _etaPreviewTimer = setTimeout(async () => {
+                const eta = await fetchEta('dock');
+                const text = (eta.source === 'history' && eta.seconds_low)
+                    ? `Estimated runtime: ${formatEtaRange(eta.seconds_low, eta.seconds_high)} ` +
+                      `(median of ${eta.samples} past runs)`
+                    : `Estimated runtime: ${formatEta(eta.seconds)}`;
+                target.textContent = text;
+            }, 250);
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            ['input[name="num_modes"]',
+             'input[name="exhaustiveness"]',
+             'input[name="smiles"]',
+             'select[name="cnn"]'].forEach(sel => {
+                const el = document.querySelector(sel);
+                if (el) {
+                    el.addEventListener('input', refreshEtaPreview);
+                    el.addEventListener('change', refreshEtaPreview);
+                }
+            });
+            refreshEtaPreview();
+        });
     </script>
 
     <!-- 3D Viewer Modal -->

@@ -5,6 +5,8 @@ Web interface for molecular docking simulations.
 
 import os
 import io
+import json
+import time
 import logging
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, flash, redirect
@@ -28,6 +30,125 @@ CORS(app)
 # Configuration
 ALLOWED_EXTENSIONS = {'sdf', 'smi', 'csv', 'txt'}
 MAX_SMILES_INPUT = 100
+
+# Runtime log used by the data-driven ETA estimator. Stored in the
+# results directory so it persists across container restarts (the
+# directory is bind-mounted from the host on production deployments).
+RUNTIME_LOG = Path(os.environ.get(
+    'RUNTIME_LOG_PATH', '/usr/src/app/results/runtimes.jsonl'))
+RUNTIME_LOG_MAX_LINES = 2000   # rotate to keep file small
+RUNTIME_LOG_KEEP_LINES = 1500  # rotate target
+
+
+def _log_runtime(record: dict) -> None:
+    """Append a single completed-run record to the runtime log.
+
+    Failures are logged but never raised — telemetry must not break docking.
+    No SMILES are stored, only counts and parameters.
+    """
+    try:
+        RUNTIME_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with RUNTIME_LOG.open('a') as f:
+            f.write(json.dumps(record) + '\n')
+        # Periodic rotation: keep the file from growing unbounded.
+        try:
+            with RUNTIME_LOG.open() as f:
+                lines = f.readlines()
+            if len(lines) > RUNTIME_LOG_MAX_LINES:
+                with RUNTIME_LOG.open('w') as f:
+                    f.writelines(lines[-RUNTIME_LOG_KEEP_LINES:])
+        except Exception:
+            pass
+    except Exception as e:
+        logger.warning(f"runtime log write failed: {e}")
+
+
+def _load_runtimes() -> list:
+    if not RUNTIME_LOG.exists():
+        return []
+    try:
+        out = []
+        with RUNTIME_LOG.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    out.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+        return out
+    except Exception as e:
+        logger.warning(f"runtime log read failed: {e}")
+        return []
+
+
+def _fallback_seconds(num_molecules: int, num_modes: int,
+                      exhaustiveness: int, cnn: str, action: str) -> float:
+    """Heuristic used until enough real runs are recorded."""
+    per_mol = 30 + num_modes * 6 + max(0, exhaustiveness - 8) * 3
+    if cnn == 'fast':
+        per_mol *= 1.5
+    elif cnn == 'default':
+        per_mol *= 3
+    base = 30 + 20 * num_molecules + per_mol * num_molecules
+    if action == 'report':
+        base += 30
+    return float(base)
+
+
+def estimate_runtime(num_molecules: int, num_modes: int,
+                     exhaustiveness: int, cnn: str, action: str) -> dict:
+    """Predict docking duration from past runs of the same CNN mode.
+
+    The model assumes total time scales with
+        work = num_molecules * num_modes * exhaustiveness
+    after a per-run setup overhead, and uses the median seconds-per-unit-work
+    of recent same-CNN runs. This is intentionally simple — robust to outliers,
+    no dependencies, adapts as runs accumulate.
+    """
+    runs = _load_runtimes()
+    similar = [r for r in runs if r.get('cnn') == cnn][-200:]
+    rates = []
+    overheads = []
+    for r in similar:
+        nm = max(1, int(r.get('num_molecules', 1)))
+        nmodes = max(1, int(r.get('num_modes', 1)))
+        exh = max(2, int(r.get('exhaustiveness', 8)))
+        dur = float(r.get('duration_s', 0) or 0)
+        if dur <= 0:
+            continue
+        work = nm * nmodes * exh
+        # Subtract a small per-molecule overhead before fitting the rate so
+        # very-small jobs do not skew the slope.
+        adj = max(0.0, dur - 5.0 - 5.0 * nm)
+        if work > 0:
+            rates.append(adj / work)
+            overheads.append(5.0 + 5.0 * nm)
+    if len(rates) < 5:
+        return {
+            'seconds': _fallback_seconds(num_molecules, num_modes,
+                                         exhaustiveness, cnn, action),
+            'samples': len(similar),
+            'source': 'fallback',
+        }
+    rates.sort()
+    median_rate = rates[len(rates) // 2]
+    work = num_molecules * num_modes * exhaustiveness
+    overhead = 10.0 + 5.0 * num_molecules
+    seconds = median_rate * work + overhead
+    if action == 'report':
+        seconds += 20.0
+    # Provide a rough confidence band from the IQR of rates.
+    q1 = rates[len(rates) // 4]
+    q3 = rates[(3 * len(rates)) // 4]
+    return {
+        'seconds': float(seconds),
+        'seconds_low': float(q1 * work + overhead + (20 if action == 'report' else 0)),
+        'seconds_high': float(q3 * work + overhead + (20 if action == 'report' else 0)),
+        'samples': len(similar),
+        'source': 'history',
+    }
 
 
 def allowed_file(filename):
@@ -101,6 +222,7 @@ def dock():
     Returns:
         Rendered template with results table
     """
+    dock_started_at = time.monotonic()
     try:
         # Initialize environment
         logger.info("Setting up docking environment...")
@@ -213,6 +335,28 @@ def dock():
         # Add molecular images and assessments
         df['structure_img'] = df['smiles'].apply(docking.smiles_to_image)
         df['assessment'] = df['affinity'].apply(lambda x: docking.assess_inhibition(x) if pd.notna(x) else {})
+
+        # Record runtime for the data-driven ETA estimator. Counts only —
+        # no SMILES are persisted.
+        action_str = request.form.get('action', 'dock')
+        try:
+            num_molecules_logged = (
+                len(valid_smiles) if smiles_list and 'valid_smiles' in dir()
+                else len(df['smiles'].unique()) if 'smiles' in df.columns
+                else 1
+            )
+        except Exception:
+            num_molecules_logged = 1
+        _log_runtime({
+            'ts': time.time(),
+            'duration_s': round(time.monotonic() - dock_started_at, 2),
+            'num_molecules': int(num_molecules_logged),
+            'num_modes': params['num_modes'],
+            'exhaustiveness': params['exhaustiveness'],
+            'autobox_add': params['autobox_add'],
+            'cnn': params['cnn'],
+            'action': action_str,
+        })
 
         # Check if user requested PDF report
         if request.form.get('action') == 'report':
@@ -353,6 +497,47 @@ def api_dock():
     except Exception as e:
         logger.error(f"API error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/estimate', methods=['POST'])
+def api_estimate():
+    """Predict docking duration based on the runtime log of past runs.
+
+    Request JSON:
+        {
+            "num_molecules": int,
+            "num_modes": int,
+            "exhaustiveness": int,
+            "cnn": "none" | "fast" | "default",
+            "action": "dock" | "report"
+        }
+
+    Response JSON:
+        {
+            "seconds": float,           # central ETA
+            "seconds_low": float,       # 25th percentile (when source=history)
+            "seconds_high": float,      # 75th percentile (when source=history)
+            "samples": int,             # number of past runs of this CNN mode
+            "source": "history" | "fallback"
+        }
+    """
+    p = request.get_json(silent=True) or {}
+    try:
+        result = estimate_runtime(
+            num_molecules=max(1, int(p.get('num_molecules', 1))),
+            num_modes=max(1, int(p.get('num_modes', 3))),
+            exhaustiveness=max(2, int(p.get('exhaustiveness', 8))),
+            cnn=str(p.get('cnn', 'none')),
+            action=str(p.get('action', 'dock')),
+        )
+        return jsonify(result)
+    except Exception as e:
+        logger.warning(f"estimate failed: {e}")
+        return jsonify({
+            'seconds': _fallback_seconds(1, 3, 8, 'none', 'dock'),
+            'samples': 0,
+            'source': 'fallback',
+        })
 
 
 @app.route('/api/receptor')
