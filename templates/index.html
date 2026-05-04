@@ -486,6 +486,20 @@
 
         function initViewer() {
             const container = document.getElementById('viewer-container');
+
+            // Reuse the existing viewer when possible — creating a new
+            // $3Dmol viewer per click leaks a WebGL context each time, and
+            // browsers cap live contexts (~16 in Chrome). After a few opens
+            // canvas.getContext('webgl') returns null and 3Dmol crashes
+            // inside Renderer.initGL.
+            if (viewer) {
+                viewer.removeAllModels();
+                if (viewer.removeAllSurfaces) viewer.removeAllSurfaces();
+                if (viewer.removeAllShapes) viewer.removeAllShapes();
+                if (viewer.removeAllLabels) viewer.removeAllLabels();
+                return viewer;
+            }
+
             container.innerHTML = '';
 
             const config = {
@@ -494,7 +508,20 @@
                 cartoonQuality: 5         // Reduce quality from 10 to 5
             };
 
-            viewer = $3Dmol.createViewer(container, config);
+            try {
+                viewer = $3Dmol.createViewer(container, config);
+                if (!viewer || typeof viewer.render !== 'function') {
+                    throw new Error('3Dmol viewer failed to initialise');
+                }
+            } catch (err) {
+                viewer = null;
+                container.innerHTML =
+                    '<p style="padding:20px;color:#a00;">' +
+                    '3D viewer could not start (WebGL unavailable). ' +
+                    'Try closing other tabs that use 3D graphics, then refresh this page.' +
+                    '</p>';
+                throw err;
+            }
             return viewer;
         }
 
@@ -713,12 +740,23 @@
 
         function showLoading() {
             const container = document.getElementById('viewer-container');
-            container.innerHTML = `
-                <div class="viewer-loading">
-                    <div class="spinner"></div>
-                    <p>Loading 3D structure...</p>
-                </div>
-            `;
+            // Add an overlay rather than wiping innerHTML — wiping would
+            // remove the cached viewer's <canvas> and break reuse.
+            hideLoading();
+            const overlay = document.createElement('div');
+            overlay.id = 'viewer-loading-overlay';
+            overlay.className = 'viewer-loading';
+            overlay.style.cssText =
+                'position:absolute;inset:0;display:flex;flex-direction:column;' +
+                'align-items:center;justify-content:center;background:rgba(255,255,255,0.85);' +
+                'z-index:10;border-radius:8px;';
+            overlay.innerHTML = '<div class="spinner"></div><p>Loading 3D structure...</p>';
+            container.appendChild(overlay);
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('viewer-loading-overlay');
+            if (overlay) overlay.remove();
         }
 
         async function showPose(poseId) {
@@ -780,8 +818,10 @@
                 }
 
                 viewer.render();
+                hideLoading();
             } catch (error) {
                 console.error('Error showing pose:', error);
+                hideLoading();
                 alert(`Error loading 3D structure: ${error.message}`);
                 closeViewer();
             }
@@ -959,9 +999,13 @@
             const modal = document.getElementById('viewer-modal');
             modal.style.display = 'none';
 
+            // Keep the viewer (and its WebGL context) alive across opens —
+            // just clear models. Disposing and re-creating leaks contexts.
             if (viewer) {
-                viewer.clear();
-                viewer = null;
+                viewer.removeAllModels();
+                if (viewer.removeAllSurfaces) viewer.removeAllSurfaces();
+                if (viewer.removeAllShapes) viewer.removeAllShapes();
+                if (viewer.removeAllLabels) viewer.removeAllLabels();
             }
 
             currentPoseData = null;
