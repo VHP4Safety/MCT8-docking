@@ -208,7 +208,7 @@ def dock():
     Handle docking request from web form.
 
     Form data:
-        - smiles: Comma-separated SMILES strings
+        - smiles: SMILES strings, newline- and/or comma-separated
         - file: SDF/SMI file upload
         - add_h: Add hydrogens (checkbox)
         - gen_3d: Generate 3D structure (checkbox)
@@ -232,10 +232,15 @@ def dock():
         # Get SMILES from text input or file
         smiles_list = []
 
-        # Text input
+        # Text input — accept newline-separated and/or comma-separated
         smiles_input = request.form.get('smiles', '').strip()
         if smiles_input:
-            smiles_list.extend([s.strip() for s in smiles_input.split(',') if s.strip()])
+            smiles_list.extend([
+                token.strip()
+                for line in smiles_input.splitlines()
+                for token in line.split(',')
+                if token.strip()
+            ])
 
         # File upload
         if 'file' in request.files:

@@ -85,14 +85,13 @@
         <form method="post" action="/dock" enctype="multipart/form-data" id="dockingForm">
             <!-- SMILES Input -->
             <div class="form-group">
-                <label for="smiles">SMILES Strings (comma-separated):</label>
-                <input type="text"
-                       id="smiles"
-                       name="smiles"
-                       value="COC1=C(C=CC(=C1)[C@H]2[C@@H](C3=C(O2)C(=CC(=C3)[C@@H]4[C@H](C(=O)C5=C(C=C(C=C5O4)O)O)O)O)CO)O"
-                       placeholder="COC1=C(C=CC(=C1)[C@H]2[C@@H]..., c1ccccc1, ..."
-                       class="form-control">
-                <small>Default: Silychristin (MCT8 inhibitor)</small>
+                <label for="smiles">SMILES Strings (one per line or comma-separated):</label>
+                <textarea id="smiles"
+                          name="smiles"
+                          rows="4"
+                          placeholder="COC1=C(C=CC(=C1)[C@H]2[C@@H]...&#10;c1ccccc1&#10;CCO"
+                          class="form-control">COC1=C(C=CC(=C1)[C@H]2[C@@H](C3=C(O2)C(=CC(=C3)[C@@H]4[C@H](C(=O)C5=C(C=C(C=C5O4)O)O)O)O)CO)O</textarea>
+                <small>One SMILES per line, or comma-separated. Default: Silychristin (MCT8 inhibitor)</small>
             </div>
 
             <!-- File Upload -->
