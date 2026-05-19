@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 LIKELY_INHIBITOR_THRESHOLD = -9.0    # Below this: high developmental risk
 POSSIBLE_INHIBITOR_THRESHOLD = -8.0  # Between -8.0 and -9.0: moderate risk
 
+# Maximum wall-clock time for a single Gnina docking run. Docking is CPU-bound
+# at roughly 10 s/molecule (cnn=none), so this caps a batch at ~170 molecules.
+DOCKING_TIMEOUT_S = 1800  # 30 minutes
+
 # Embedded PDB data
 BINDING_SITE_PDB = '''HETATM    1  C   SIT E   1       2.352  -9.145   8.079  1.00 37.89           C
 HETATM    2  C   SIT E   1       2.081 -10.116   7.032  1.00 32.58           C
@@ -264,7 +268,8 @@ def run_docking(ligand_file, receptor_file, site_file,
     logger.info(f"Running Gnina docking (CPU mode): {' '.join(cmd)}")
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                                timeout=DOCKING_TIMEOUT_S)
 
         if result.returncode == 0:
             logger.info("Docking completed successfully")
@@ -285,10 +290,11 @@ def run_docking(ligand_file, receptor_file, site_file,
             }
 
     except subprocess.TimeoutExpired:
-        logger.error("Docking timeout (10 minutes)")
+        timeout_min = DOCKING_TIMEOUT_S // 60
+        logger.error(f"Docking timeout ({timeout_min} minutes)")
         return {
             'success': False,
-            'error': "Docking timeout after 10 minutes"
+            'error': f"Docking timeout after {timeout_min} minutes"
         }
     except Exception as e:
         logger.error(f"Docking error: {e}")
