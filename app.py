@@ -8,6 +8,7 @@ import io
 import json
 import time
 import logging
+import threading
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, flash, redirect
 from flask_cors import CORS
@@ -30,6 +31,23 @@ CORS(app)
 # Configuration
 ALLOWED_EXTENSIONS = {'sdf', 'smi', 'csv', 'txt'}
 MAX_SMILES_INPUT = 100
+
+# Serialize gnina invocations across concurrent requests. Two requests running
+# in parallel would (a) share the host's 4 CPU cores allocated to gnina and
+# slow each other down enough to hit the 30-minute timeout, and (b) clobber
+# the shared ligands.sdf / output.sdf working files. The lock makes the second
+# request wait its turn instead.
+_DOCKING_LOCK = threading.Lock()
+
+
+def _run_docking_serialized(**kwargs):
+    """Acquire the global docking lock, run gnina, log queue wait."""
+    wait_started = time.monotonic()
+    with _DOCKING_LOCK:
+        waited = time.monotonic() - wait_started
+        if waited > 1.0:
+            logger.info(f"Docking queued for {waited:.1f}s before starting")
+        return docking.run_docking(**kwargs)
 
 # Runtime log used by the data-driven ETA estimator. Stored in the
 # results directory so it persists across container restarts (the
@@ -319,8 +337,8 @@ def dock():
 
         logger.info(f"Running docking with parameters: {params}")
 
-        # Run docking
-        result = docking.run_docking(
+        # Run docking (serialized across concurrent requests)
+        result = _run_docking_serialized(
             ligand_file=ligand_file,
             receptor_file=str(receptor),
             site_file=str(site),
@@ -452,8 +470,8 @@ def api_dock():
         if validation_errors:
             return jsonify({'error': f"Invalid parameters: {'; '.join(validation_errors)}"}), 400
 
-        # Run docking
-        result = docking.run_docking(
+        # Run docking (serialized across concurrent requests)
+        result = _run_docking_serialized(
             ligand_file=ligand_file,
             receptor_file=str(receptor),
             site_file=str(site),
