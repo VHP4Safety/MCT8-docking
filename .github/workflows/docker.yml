@@ -35,8 +35,10 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
+          # Owner is spelled literally in lowercase: ${{ github.repository_owner }}
+          # expands to "VHP4Safety" and Docker rejects uppercase repository names.
           tags: |
-            ghcr.io/${{ github.repository_owner }}/mct8-docking:latest
-            ghcr.io/${{ github.repository_owner }}/mct8-docking:${{ github.sha }}
+            ghcr.io/vhp4safety/mct8-docking:latest
+            ghcr.io/vhp4safety/mct8-docking:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
